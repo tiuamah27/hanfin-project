@@ -7,17 +7,27 @@ import { formatRupiahShort, formatDateShort, formatRupiah, getMonthString } from
 import { cn } from "@/lib/utils";
 import { Plus, Search, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useState, useMemo } from "react";
+import { toast } from "@/components/ui/toaster";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { useUIStore } from "@/stores/ui-store";
+import type { Transaction } from "@/types";
 
 const TRANSFER_CATS = ["Transfer", "Transfer Keluar", "Transfer Masuk"];
 
 export default function TransactionsPage() {
-  const { transactionMonth, setTransactionMonth, transactionType, setTransactionType, transactionSearch, setTransactionSearch } = useFilterStore();
-  const { data: txns, isLoading } = useTransactions(transactionMonth, { type: transactionType === "all" ? undefined : transactionType, search: transactionSearch || undefined });
+  const { openModal } = useUIStore();
+  const { transactionMonth, setTransactionMonth, transactionType, setTransactionType, transactionSearch, setTransactionSearch, transactionCategory, setTransactionCategory } = useFilterStore();
+  const { data: txns, isLoading } = useTransactions(transactionMonth, { 
+    type: transactionType === "all" ? undefined : transactionType, 
+    search: transactionSearch || undefined,
+    categoryId: transactionCategory === "all" ? undefined : transactionCategory
+  });
   const { data: categories } = useCategories();
   const { data: wallets } = useWallets();
   const { user } = useAuth();
   const deleteTxn = useDeleteTransaction();
   const [showForm, setShowForm] = useState(false);
+  const [txnToDelete, setTxnToDelete] = useState<Transaction | null>(null);
 
   const summary = useMemo(() => {
     if (!txns) return { income: 0, expense: 0 };
@@ -38,20 +48,21 @@ export default function TransactionsPage() {
   })();
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col h-[calc(100vh-7rem)]">
+      {/* Page Title */}
+      <div className="flex-none flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <div>
           <h1 className="text-lg font-bold text-foreground">Transaksi</h1>
           <p className="text-xs text-muted-foreground">Kelola semua transaksi keuangan keluarga</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl gradient-accent text-white text-sm font-semibold shadow-lg shadow-primary/20 hover:opacity-90 transition-all">
+        <button onClick={() => openModal("transaction")} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl gradient-accent text-white text-sm font-semibold shadow-lg shadow-primary/20 hover:opacity-90 transition-all">
           <Plus className="w-4 h-4" /> Tambah Transaksi
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="glass-card p-4 flex flex-col sm:flex-row gap-3 items-center">
+      {/* Fixed Filters Wrapper */}
+      <div className="flex-none mb-5">
+        <div className="glass-card p-3 sm:p-4 flex flex-col sm:flex-row gap-3 items-center shadow-sm">
         {/* Month Nav */}
         <div className="flex items-center gap-2">
           <button onClick={() => changeMonth(-1)} className="p-1.5 rounded-lg hover:bg-card text-muted-foreground"><ChevronLeft className="w-4 h-4" /></button>
@@ -60,12 +71,27 @@ export default function TransactionsPage() {
         </div>
 
         {/* Type Filter */}
-        <div className="flex gap-1 bg-card rounded-xl p-1">
+        <div className="flex gap-1 bg-card rounded-xl p-1 shrink-0">
           {(["all", "income", "expense"] as const).map((t) => (
             <button key={t} onClick={() => setTransactionType(t)} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all", transactionType === t ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground")}>
               {t === "all" ? "Semua" : t === "income" ? "Masuk" : "Keluar"}
             </button>
           ))}
+        </div>
+
+        {/* Category Filter */}
+        <div className="shrink-0">
+          <select
+            value={transactionCategory || "all"}
+            onChange={(e) => setTransactionCategory(e.target.value)}
+            className="h-[34px] px-3 rounded-xl bg-card border border-border text-xs text-foreground focus:outline-none focus:border-primary/50 cursor-pointer appearance-none pr-8 relative"
+            style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2364748b\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}
+          >
+            <option value="all">Semua Kategori</option>
+            {(categories || []).map(c => (
+              <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+            ))}
+          </select>
         </div>
 
         {/* Search */}
@@ -83,9 +109,10 @@ export default function TransactionsPage() {
           </span>
         </div>
       </div>
+      </div>
 
-      {/* Table */}
-      <div className="glass-card overflow-hidden">
+      {/* Table Content (Scrollable) */}
+      <div className="flex-1 min-h-0 overflow-y-auto glass-scrollbar glass-card rounded-2xl border border-border shadow-sm">
         {isLoading ? (
           <div className="p-6 space-y-3">
             {[...Array(6)].map((_, i) => (
@@ -113,7 +140,7 @@ export default function TransactionsPage() {
                   {t.categories?.icon || "📦"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
+                  <p className="text-sm font-medium text-foreground truncate cursor-pointer hover:text-primary transition-colors" onClick={() => openModal("transaction", t)}>
                     {t.description || t.categories?.name || "Transaksi"}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground font-mono">
@@ -127,7 +154,7 @@ export default function TransactionsPage() {
                 <span className={cn("text-sm font-mono font-bold shrink-0", t.type === "income" ? "text-green" : "text-red")}>
                   {t.type === "income" ? "+" : "-"}{formatRupiah(t.amount)}
                 </span>
-                <button onClick={() => { if (confirm("Hapus transaksi ini?")) deleteTxn.mutate(t); }} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-dim text-dim hover:text-red transition-all">
+                <button onClick={() => setTxnToDelete(t)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-dim text-dim hover:text-red transition-all">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -135,6 +162,14 @@ export default function TransactionsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!txnToDelete}
+        title="Hapus Transaksi"
+        message={`Apakah Anda yakin ingin menghapus transaksi "${txnToDelete?.description || txnToDelete?.categories?.name || 'ini'}"?`}
+        onConfirm={() => { if (txnToDelete) deleteTxn.mutate(txnToDelete); }}
+        onCancel={() => setTxnToDelete(null)}
+      />
     </motion.div>
   );
 }

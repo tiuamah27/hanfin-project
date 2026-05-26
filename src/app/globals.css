@@ -167,6 +167,23 @@ body {
   background: rgba(56, 189, 248, 0.3);
 }
 
+/* Glassmorphism Inset Scrollbar */
+.glass-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.glass-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+.glass-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+.glass-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 /* ---- Selection ---- */
 ::selection {
   background: rgba(56, 189, 248, 0.25);

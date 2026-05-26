@@ -97,7 +97,7 @@ export const walletService = {
       to_wallet_id,
       amount,
       admin_fee,
-      date: todayISO(),
+      date: payload.date || todayISO(),
       notes,
     });
     if (trErr) throw trErr;

@@ -20,7 +20,7 @@ export const transactionService = {
     const { start, end } = getMonthRangeFromString(month);
     let q = db()
       .from('transactions')
-      .select('*, categories(name,icon,color), wallets(name,icon), profiles(name)')
+      .select('*, categories(name,icon,color), wallets(name,icon), profiles!transactions_user_id_fkey(name)')
       .gte('date', start)
       .lte('date', end)
       .order('date', { ascending: false })
@@ -52,7 +52,7 @@ export const transactionService = {
   async getRecent(limit: number = 6): Promise<Transaction[]> {
     const { data, error } = await db()
       .from('transactions')
-      .select('*, categories(name,icon,color), profiles(name)')
+      .select('*, categories(name,icon,color), profiles!transactions_user_id_fkey(name)')
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(limit);

@@ -247,6 +247,7 @@ export interface WalletTransferDTO {
   to_wallet_id: string;
   amount: number;
   admin_fee?: number;
+  date?: string;
   notes?: string;
 }
 

@@ -19,6 +19,8 @@ import {
   ChevronLeft,
   LogOut,
   X,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 const navItems = [
@@ -71,25 +73,10 @@ export function Sidebar() {
           <X className="w-4 h-4" />
         </button>
 
-        {/* Desktop collapse */}
-        <button
-          onClick={toggleSidebarCollapsed}
-          className="hidden lg:flex p-1.5 rounded-lg hover:bg-card text-muted-foreground transition-colors"
-        >
-          <ChevronLeft
-            className={cn("w-4 h-4 transition-transform", sidebarCollapsed && "rotate-180")}
-          />
-        </button>
       </div>
 
       {/* Nav Items */}
-      <nav className="flex-1 px-3 space-y-1">
-        <p className={cn(
-          "px-3 mb-2 text-[10px] font-mono uppercase tracking-widest text-dim",
-          sidebarCollapsed && "text-center"
-        )}>
-          {sidebarCollapsed ? "•••" : "Menu"}
-        </p>
+      <nav className="flex-1 px-3 mt-4 space-y-1">
         {navItems.map((item) => {
           const active = isActive(item.href);
           return (
@@ -105,13 +92,6 @@ export function Sidebar() {
                 sidebarCollapsed && "justify-center px-0"
               )}
             >
-              {active && (
-                <motion.div
-                  layoutId="sidebar-indicator"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary"
-                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                />
-              )}
               <item.icon className={cn("w-[18px] h-[18px] shrink-0", active && "text-primary")} />
               {!sidebarCollapsed && <span>{item.label}</span>}
               {item.badge && !sidebarCollapsed && unpaidCount && unpaidCount > 0 ? (
@@ -129,7 +109,17 @@ export function Sidebar() {
 
       {/* Bottom Section */}
       <div className="px-3 pb-4 space-y-1">
-        <div className="border-t border-border my-3" />
+        <button
+          onClick={toggleSidebarCollapsed}
+          className={cn(
+            "hidden lg:flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-muted-foreground hover:text-foreground hover:bg-card",
+            sidebarCollapsed && "justify-center px-0"
+          )}
+        >
+          {sidebarCollapsed ? <PanelLeftOpen className="w-[18px] h-[18px]" /> : <PanelLeftClose className="w-[18px] h-[18px]" />}
+          {!sidebarCollapsed && <span>Ciutkan Sidebar</span>}
+        </button>
+        <div className="border-t border-border my-2" />
         {bottomItems.map((item) => {
           const active = isActive(item.href);
           return (

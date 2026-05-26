@@ -3,10 +3,34 @@
 import { useQuery } from "@tanstack/react-query";
 import { transactionService } from "@/lib/services/transaction-service";
 import { getMonthRange, formatRupiahShort } from "@/lib/utils/formatters";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { RadialBarChart, RadialBar, ResponsiveContainer, Tooltip } from "recharts";
+import { motion, AnimatePresence } from "framer-motion";
 
 const COLORS = ["#38bdf8", "#a78bfa", "#fbbf24", "#34d399", "#f87171", "#fb7185"];
 const TRANSFER_CATS = ["Transfer", "Transfer Keluar", "Transfer Masuk"];
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    const valueStr = formatRupiahShort(data.value).replace('Rp', '').trim();
+    return (
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }} 
+        animate={{ opacity: 1, scale: 1 }} 
+        exit={{ opacity: 0, scale: 0.9 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="bg-card/95 backdrop-blur-md border border-border/50 py-2.5 px-4 rounded-full shadow-2xl flex items-center gap-3 pointer-events-none"
+      >
+        <div className="w-2.5 h-2.5 rounded-full shadow-sm shrink-0" style={{ backgroundColor: data.fill || payload[0].fill || COLORS[0] }} />
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold text-muted-foreground leading-none mb-1">Rp</span>
+          <span className="text-sm font-bold text-foreground font-mono leading-none tracking-tight">{valueStr}</span>
+        </div>
+      </motion.div>
+    );
+  }
+  return null;
+};
 
 export function SpendingDonut() {
   const { data: chartData, isLoading } = useQuery({
@@ -42,25 +66,27 @@ export function SpendingDonut() {
         </div>
       ) : (
         <>
-          <div className="h-[180px] relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={chartData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value" stroke="none">
-                  {chartData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ background: "rgba(11,18,32,0.95)", border: "1px solid rgba(56,189,248,0.15)", borderRadius: 10, fontSize: 12 }}
-                  formatter={(v: unknown) => [formatRupiahShort(Number(v)), ""]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            {/* Center Label */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <p className="text-base font-bold font-mono text-foreground">{formatRupiahShort(total)}</p>
-                <p className="text-[10px] text-muted-foreground">Total</p>
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div className="w-[130px] h-[130px] relative shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadialBarChart 
+                  cx="50%" cy="50%" 
+                  innerRadius="35%" outerRadius="100%" 
+                  barSize={10} 
+                  data={chartData.map((d, i) => ({ ...d, fill: COLORS[i % COLORS.length] }))} 
+                  startAngle={90} endAngle={-270}
+                >
+                  <RadialBar background={{ fill: 'rgba(255,255,255,0.05)' }} dataKey="value" cornerRadius={10} />
+                  <Tooltip content={<CustomTooltip />} cursor={false} position={{ x: -25, y: 35 }} />
+                </RadialBarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="text-right flex-1 min-w-0">
+              <p className="text-2xl font-bold font-mono text-foreground truncate">{formatRupiahShort(total)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Total Pengeluaran</p>
+              <div className="inline-block mt-2 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-mono border border-primary/20">
+                Bulan Ini
               </div>
             </div>
           </div>

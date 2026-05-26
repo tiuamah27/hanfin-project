@@ -6,6 +6,7 @@ import { useUIStore } from "@/stores/ui-store";
 import { useWallets, useAuth } from "@/hooks";
 import { formatRupiahShort } from "@/lib/utils/formatters";
 import { Menu, Search, Bell, Wallet } from "lucide-react";
+import { toast } from "@/components/ui/toaster";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -34,13 +35,13 @@ export function Topbar() {
   return (
     <header
       className={cn(
-        "fixed top-0 right-0 z-30 h-[var(--spacing-topbar)] flex items-center justify-between gap-4 px-6",
-        "glass border-b border-border",
+        "fixed top-4 right-4 z-30 h-14 flex items-center justify-between gap-4 px-6 rounded-2xl",
+        "glass border border-border shadow-sm",
         "transition-all duration-300",
         sidebarCollapsed
-          ? "left-[var(--spacing-sidebar-collapsed)]"
-          : "left-[var(--spacing-sidebar)]",
-        "max-lg:left-0"
+          ? "left-[calc(var(--spacing-sidebar-collapsed)+16px)]"
+          : "left-[calc(var(--spacing-sidebar)+16px)]",
+        "max-lg:left-4"
       )}
     >
       {/* Left */}
@@ -82,9 +83,9 @@ export function Topbar() {
         </div>
 
         {/* Notifications */}
-        <button className="relative p-2 rounded-xl hover:bg-card text-muted-foreground transition-colors">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary animate-glow-pulse" />
+        <button onClick={() => toast.info("Belum ada notifikasi baru")} className="relative p-2.5 rounded-xl bg-card border border-border hover:border-primary/50 text-muted-foreground hover:text-foreground transition-all group">
+          <Bell className="w-4 h-4 group-hover:animate-swing" />
+          <span className="absolute top-2 right-2.5 w-1.5 h-1.5 rounded-full bg-primary animate-glow-pulse" />
         </button>
 
         {/* User Avatar (mobile) */}
