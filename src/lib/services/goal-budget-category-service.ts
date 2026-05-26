@@ -99,14 +99,33 @@ export const budgetService = {
     return (data || []) as BudgetGroup[];
   },
 
-  async createBudgetGroup(payload: { name: string; icon: string; color: string }, userId: string): Promise<BudgetGroup> {
-    const { data, error } = await db()
+  async createBudgetGroup(payload: { name: string; icon: string; color: string; amount?: number; is_recurring?: boolean; notes?: string | null; category_ids?: string[] }, userId: string): Promise<BudgetGroup> {
+    const { data: groupData, error: groupError } = await db()
       .from('budget_groups')
       .insert({ ...payload, user_id: userId })
       .select()
       .single();
-    if (error) throw error;
-    return data as BudgetGroup;
+    if (groupError) throw groupError;
+
+    // Create individual budgets for the current month if categories are selected
+    if (payload.category_ids && payload.category_ids.length > 0) {
+      const period = new Date().toISOString().substring(0, 7);
+      const amountPerCat = Math.floor((payload.amount || 0) / payload.category_ids.length);
+      
+      const budgetsToInsert = payload.category_ids.map(catId => ({
+        user_id: userId,
+        category_id: catId,
+        budget_group_id: groupData.id,
+        amount: amountPerCat,
+        period: period,
+        notes: payload.notes
+      }));
+
+      const { error: budgetError } = await db().from('budgets').insert(budgetsToInsert);
+      if (budgetError) console.error("Failed to insert initial group budgets:", budgetError);
+    }
+
+    return groupData as BudgetGroup;
   },
 };
 

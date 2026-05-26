@@ -1,21 +1,38 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { TransactionModal } from "@/features/transactions/transaction-modal";
 import { WalletModal } from "@/features/wallets/wallet-modal";
 import { TransferModal } from "@/features/wallets/transfer-modal";
-import { useUIStore } from "@/stores/ui-store";
+import { BillModal } from "@/features/bills/bill-modal";
+import { GoalModal } from "@/features/goals/goal-modal";
+import { GoalContributionModal } from "@/features/goals/goal-contribution-modal";
+import { BudgetModal } from "@/features/budgets/budget-modal";
+import { BudgetGroupBuilderModal } from "@/features/budgets/budget-group-builder";
+import { BillPaymentModal } from "@/features/bills/bill-payment-modal";
+import { PaylaterPaymentModal } from "@/features/bills/paylater-payment-modal";
 
 export function ModalProvider() {
-  const { activeModal } = useUIStore();
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Return early if no modal is active to save rendering
-  if (!activeModal) return null;
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) return null;
 
   return (
     <>
       <TransactionModal />
       <WalletModal />
       <TransferModal />
+      <BillModal />
+      <BillPaymentModal />
+      <PaylaterPaymentModal />
+      <GoalModal />
+      <BudgetModal />
+      <BudgetGroupBuilderModal />
+      <GoalContributionModal />
     </>
   );
 }

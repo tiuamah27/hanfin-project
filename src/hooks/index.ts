@@ -220,6 +220,19 @@ export function useCreateBill() {
   });
 }
 
+export function useUpdateBill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<CreateBillDTO> }) =>
+      billService.update(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['bills'] });
+      toast.success('Tagihan berhasil diperbarui');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function usePayBill() {
   const qc = useQueryClient();
   return useMutation({
@@ -229,6 +242,19 @@ export function usePayBill() {
       toast.success('Tagihan ditandai lunas');
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function usePayPaylaterBill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, amount }: { id: string; amount: number }) => billService.payPaylaterBill(id, amount),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['paylater_bills'] });
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['wallets'] });
+    },
+    // We handle toast inside the modal for custom messages, or we can handle error here
   });
 }
 
@@ -273,7 +299,23 @@ export function useBudgets(period: string) {
 }
 
 export function useBudgetGroups() {
-  return useQuery({ queryKey: ['budget-groups'], queryFn: () => budgetService.getBudgetGroups() });
+  return useQuery({
+    queryKey: ['budget-groups'],
+    queryFn: () => budgetService.getBudgetGroups(),
+  });
+}
+
+export function useCreateBudgetGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ payload, userId }: { payload: { name: string; icon: string; color: string; amount?: number; is_recurring?: boolean; notes?: string | null; category_ids?: string[] }; userId: string }) =>
+      budgetService.createBudgetGroup(payload, userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budget-groups'] });
+      toast.success('Budget Group berhasil ditambahkan');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 }
 
 export function useCreateBudget() {

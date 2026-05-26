@@ -162,6 +162,10 @@ export interface BudgetGroup {
   name: string;
   icon: string;
   color: string;
+  amount?: number;
+  is_recurring?: boolean;
+  notes?: string | null;
+  category_ids?: string[];
   created_at: string;
 }
 

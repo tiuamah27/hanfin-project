@@ -4,10 +4,12 @@ import { motion } from "framer-motion";
 import { useGoals, useAuth, useTransactions } from "@/hooks";
 import { formatRupiah, formatRupiahShort, formatDate, formatDateShort, todayISO } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils";
+import { useUIStore } from "@/stores/ui-store";
 import { Plus, Target } from "lucide-react";
 
 export default function GoalsPage() {
   const { data: goals, isLoading } = useGoals();
+  const { openModal } = useUIStore();
   const today = todayISO();
   const { data: txns } = useTransactions(today.substring(0, 7));
 
@@ -78,8 +80,8 @@ export default function GoalsPage() {
 
                     <div className="pt-3 border-t border-border/50 flex items-center justify-between">
                       <p className="text-[9px] text-muted-foreground font-mono">Sisa: {formatRupiah(remaining)}</p>
-                      <button className="px-4 py-1.5 rounded-full gradient-accent text-white text-[10px] font-bold shadow-sm shadow-primary/20 hover:opacity-90 transition-all">
-                        + Nabung
+                      <button onClick={() => openModal('goal_contribution', g)} className="px-4 py-1.5 rounded-full gradient-accent text-white text-[10px] font-bold shadow-sm shadow-primary/20 hover:opacity-90 transition-all">
+                        + Kontribusi
                       </button>
                     </div>
                   </motion.div>
@@ -92,7 +94,7 @@ export default function GoalsPage() {
 
       <div className="w-full xl:w-[320px] shrink-0">
         <div className="w-full h-[44px] mb-6">
-          <button className="w-full h-full flex items-center justify-center gap-2 rounded-xl gradient-accent text-white text-sm font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all">
+          <button onClick={() => openModal('goal')} className="w-full h-full flex items-center justify-center gap-2 rounded-xl gradient-accent text-white text-sm font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all">
             <Plus className="w-4 h-4" /> Buat Goal Baru
           </button>
         </div>

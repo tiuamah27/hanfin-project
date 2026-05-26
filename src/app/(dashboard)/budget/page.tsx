@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useBudgets, useCategories, useTransactions } from "@/hooks";
 import { useFilterStore } from "@/stores/filter-store";
+import { useUIStore } from "@/stores/ui-store";
 import { formatRupiahShort, getMonthString, todayISO, formatDateShort } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Plus, PieChart } from "lucide-react";
@@ -10,6 +11,7 @@ import { useMemo } from "react";
 
 export default function BudgetPage() {
   const { budgetPeriod, setBudgetPeriod } = useFilterStore();
+  const { openModal } = useUIStore();
   const { data: budgets, isLoading } = useBudgets(budgetPeriod);
   const { data: txns } = useTransactions(budgetPeriod);
   const today = todayISO();
@@ -38,6 +40,26 @@ export default function BudgetPage() {
   const budgetTerpakaiPct = totalBudget > 0 ? (totalTerpakai / totalBudget) * 100 : 0;
   const sisaBudget = Math.max(0, totalBudget - totalTerpakai);
 
+  const groupedBudgets = useMemo(() => {
+    const groups: Record<string, { id: string, name: string, icon: string, budgets: any[] }> = {};
+    const ungrouped = { id: 'ungrouped', name: 'Uncategorized', icon: '📦', budgets: [] as any[] };
+    
+    (budgets || []).forEach(b => {
+      if (b.budget_groups) {
+        if (!groups[b.budget_groups.id]) {
+          groups[b.budget_groups.id] = { id: b.budget_groups.id, name: b.budget_groups.name, icon: b.budget_groups.icon, budgets: [] };
+        }
+        groups[b.budget_groups.id].budgets.push(b);
+      } else {
+        ungrouped.budgets.push(b);
+      }
+    });
+    
+    const result = Object.values(groups);
+    if (ungrouped.budgets.length > 0) result.push(ungrouped);
+    return result;
+  }, [budgets]);
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col xl:flex-row gap-6">
       
@@ -59,7 +81,7 @@ export default function BudgetPage() {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-8">
 
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -72,41 +94,56 @@ export default function BudgetPage() {
           <p className="text-xs text-muted-foreground mt-1">Set anggaran untuk mengontrol pengeluaran</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {budgets.map((b) => {
-            const catId = b.category_id || "";
-            const actual = spending[catId] || 0;
-            const pct = b.amount > 0 ? Math.round((actual / b.amount) * 100) : 0;
-            const catName = b.categories?.name || b.budget_groups?.name || "Umum";
-            const catIcon = b.categories?.icon || b.budget_groups?.icon || "📊";
-            return (
-              <div key={b.id} className="glass-card p-5 border border-border">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-lg">{catIcon}</span>
-                  <span className="text-sm font-medium text-foreground">{catName}</span>
-                  <span className={cn("ml-auto text-xs font-bold font-mono", pct > 100 ? "text-red" : pct > 80 ? "text-amber" : "text-green")}>{pct}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-card overflow-hidden mb-2">
-                  <div className={cn("h-full rounded-full transition-all duration-700", pct > 100 ? "bg-red" : pct > 80 ? "bg-amber" : "bg-green")} style={{ width: `${Math.min(100, pct)}%` }} />
-                </div>
-                <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
-                  <span>{formatRupiahShort(actual)} terpakai</span>
-                  <span>{formatRupiahShort(b.amount)} budget</span>
-                </div>
+        <div className="space-y-6">
+          {groupedBudgets.map((group) => (
+            <div key={group.id} className="space-y-3">
+              <h2 className="text-sm font-bold flex items-center gap-2 text-foreground mb-3">
+                <span>{group.icon}</span> {group.name}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {group.budgets.map((b) => {
+                  const catId = b.category_id || "";
+                  const actual = spending[catId] || 0;
+                  const pct = b.amount > 0 ? Math.round((actual / b.amount) * 100) : 0;
+                  const catName = b.categories?.name || "Umum";
+                  const catIcon = b.categories?.icon || "📊";
+                  return (
+                    <div key={b.id} className="glass-card p-5 border border-border">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-lg">{catIcon}</span>
+                        <div className="flex flex-col">
+                           <span className="text-sm font-medium text-foreground">{catName}</span>
+                           {(b as any).notes && <span className="text-[9px] text-muted-foreground truncate max-w-[120px]">{(b as any).notes}</span>}
+                        </div>
+                        <span className={cn("ml-auto text-xs font-bold font-mono", pct > 100 ? "text-red" : pct > 80 ? "text-amber" : "text-green")}>{pct}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-card overflow-hidden mb-2">
+                        <div className={cn("h-full rounded-full transition-all duration-700", pct > 100 ? "bg-red" : pct > 80 ? "bg-amber" : "bg-green")} style={{ width: `${Math.min(100, pct)}%` }} />
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
+                        <span>{formatRupiahShort(actual)} terpakai</span>
+                        <span>{formatRupiahShort(b.amount)} budget</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
-      </div>
+        </div>
       </div>
 
       {/* Right Content (Analytics Panel) */}
       <div className="w-full xl:w-[320px] shrink-0">
         {/* Quick Actions */}
-        <div className="w-full h-[44px] mb-6">
-          <button className="w-full h-full flex items-center justify-center gap-2 rounded-xl gradient-accent text-white text-sm font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all">
-            <Plus className="w-4 h-4" /> Set Budget
+        <div className="w-full h-[44px] mb-6 flex gap-2">
+          <button onClick={() => openModal("budget")} className="flex-1 h-full flex items-center justify-center gap-1.5 rounded-xl border border-primary/50 text-primary text-xs font-bold hover:bg-primary/10 transition-all">
+            <Plus className="w-3 h-3" /> Budget Biasa
+          </button>
+          <button onClick={() => openModal("budget_group")} className="flex-1 h-full flex items-center justify-center gap-1.5 rounded-xl gradient-accent text-white text-xs font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all">
+            <Plus className="w-3 h-3" /> Budget Group
           </button>
         </div>
         

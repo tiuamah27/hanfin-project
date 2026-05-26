@@ -17,6 +17,7 @@ export function TransferModal() {
   const [fromWalletId, setFromWalletId] = useState("");
   const [toWalletId, setToWalletId] = useState("");
   const [amount, setAmount] = useState("");
+  const [adminFee, setAdminFee] = useState("");
   const [date, setDate] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -25,6 +26,7 @@ export function TransferModal() {
       setFromWalletId(wallets?.[0]?.id || "");
       setToWalletId(wallets?.[1]?.id || "");
       setAmount("");
+      setAdminFee("");
       setDate(new Date().toISOString().split("T")[0]);
       setNotes("");
     }
@@ -40,6 +42,7 @@ export function TransferModal() {
           from_wallet_id: fromWalletId,
           to_wallet_id: toWalletId,
           amount: Number(amount),
+          admin_fee: adminFee ? Number(adminFee) : undefined,
           date,
           notes,
         },
@@ -68,11 +71,20 @@ export function TransferModal() {
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Nominal Transfer</label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-mono">Rp</span>
-            <input type="number" required value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-surface border border-border rounded-xl text-foreground font-mono focus:outline-none focus:border-primary/50" placeholder="0" />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Nominal Transfer</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-mono">Rp</span>
+              <input type="number" required value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-surface border border-border rounded-xl text-foreground font-mono focus:outline-none focus:border-primary/50" placeholder="0" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Biaya Admin</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-mono">Rp</span>
+              <input type="number" value={adminFee} onChange={(e) => setAdminFee(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-surface border border-border rounded-xl text-foreground font-mono focus:outline-none focus:border-primary/50" placeholder="0" />
+            </div>
           </div>
         </div>
 

@@ -1,17 +1,23 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useBills, usePayLaterBills, usePayBill, useTransactions } from "@/hooks";
 import { useFilterStore } from "@/stores/filter-store";
+import { useUIStore } from "@/stores/ui-store";
 import { formatRupiah, formatRupiahShort, formatDateShort, todayISO } from "@/lib/utils/formatters";
 import { getProviderInfo } from "@/lib/paylater";
 import { cn } from "@/lib/utils";
-import { Plus, CheckCircle2, Clock, AlertTriangle, Repeat } from "lucide-react";
+import { Plus, CheckCircle2, Clock, AlertTriangle, Repeat, Edit2, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function BillsPage() {
+  const [expandedPL, setExpandedPL] = useState<string | null>(null);
   const { billsStatus, setBillsStatus } = useFilterStore();
+  const { openModal } = useUIStore();
   const { data: bills, isLoading: billsLoading } = useBills(billsStatus === "all" ? undefined : billsStatus);
-  const { data: plBills, isLoading: plLoading } = usePayLaterBills();
+  const { data: plBills, isLoading: plLoading } = usePayLaterBills({
+    statusFilter: billsStatus === "all" ? undefined : billsStatus
+  });
   const today = todayISO();
   const { data: txns } = useTransactions(today.substring(0, 7));
   const payBill = usePayBill();
@@ -76,11 +82,20 @@ export default function BillsPage() {
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p className="text-sm font-semibold text-foreground">{b.name}</p>
-                          <p className="text-[10px] text-muted-foreground font-mono mt-0.5 flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-blue-500/20 flex items-center justify-center"><Repeat className="w-1.5 h-1.5 text-blue-500" /></div> undefined</p>
+                          {b.is_recurring && (
+                             <div className="text-[10px] text-muted-foreground font-mono mt-0.5 flex items-center gap-1">
+                               <div className="w-2.5 h-2.5 rounded-sm bg-blue-500/20 flex items-center justify-center">
+                                  <Repeat className="w-1.5 h-1.5 text-blue-500" />
+                               </div>
+                               Berulang Tiap Bulan
+                             </div>
+                          )}
                         </div>
-                        <span className={cn("text-[9px] font-bold font-mono px-2 py-1 rounded-full uppercase", isOverdue ? "bg-red-dim text-red" : isPaid ? "bg-green-dim text-green" : "bg-amber-dim text-amber")}>
-                          {isOverdue ? "Overdue" : isPaid ? "Lunas" : "Unpaid"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                           <span className={cn("text-[9px] font-bold font-mono px-2 py-1 rounded-full uppercase", isOverdue ? "bg-red-dim text-red" : isPaid ? "bg-green-dim text-green" : "bg-amber-dim text-amber")}>
+                             {isOverdue ? "Overdue" : isPaid ? "Lunas" : "Unpaid"}
+                           </span>
+                        </div>
                       </div>
                       <p className="text-lg font-bold font-mono text-foreground">{formatRupiah(b.amount)}</p>
                       <div className="flex items-center gap-1.5 mt-2 text-[11px] text-muted-foreground">
@@ -88,7 +103,7 @@ export default function BillsPage() {
                         <span>{formatDateShort(b.due_date)}</span>
                       </div>
                       {!isPaid && (
-                        <button onClick={() => payBill.mutate(b.id)} className="mt-3 w-full py-2 rounded-lg bg-card/80 hover:bg-card border border-border/50 text-primary text-[11px] font-semibold transition-colors">
+                        <button onClick={() => openModal('bill_payment', b)} className="mt-3 w-full py-2 rounded-lg bg-card/80 hover:bg-card border border-border/50 text-primary text-[11px] font-semibold transition-colors">
                           Tandai Lunas
                         </button>
                       )}
@@ -101,12 +116,12 @@ export default function BillsPage() {
 
           {/* PayLater Bills */}
           <div>
-            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-blue-500/10 flex items-center justify-center">
-                <span className="text-[10px]">💳</span>
-              </div>
-              Cicilan PayLater
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs font-bold text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
+                <span className="w-4 h-4 rounded bg-amber-dim flex items-center justify-center text-[10px]">💳</span>
+                Cicilan PayLater
+              </h2>
+            </div>
             {plLoading ? (
               <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-16 skeleton rounded-xl" />)}</div>
             ) : !plBills || plBills.length === 0 ? (
@@ -118,19 +133,73 @@ export default function BillsPage() {
                   const remaining = Number((b as any).remaining_amount || (b.amount - ((b as any).paid_amount || 0)));
                   const isPaid = b.status === "paid";
                   const isOverdue = !isPaid && b.due_date < today;
+                  const isExpanded = expandedPL === b.id;
+                  const items = (b as any).paylater_bill_items || [];
+
                   return (
-                    <div key={b.id} className="flex items-center gap-4 px-5 py-4 hover:bg-card/50 transition-colors">
-                      <span className="text-xl">{prov.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground">{b.wallets?.name || prov.label}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">Jatuh tempo: {formatDateShort(b.due_date)}</p>
+                    <div key={b.id} className="flex flex-col border-b border-border/50 last:border-0">
+                      <div 
+                        onClick={() => setExpandedPL(isExpanded ? null : b.id)}
+                        className="flex items-center gap-4 px-5 py-4 hover:bg-card/50 transition-colors cursor-pointer"
+                      >
+                        <span className="text-xl">{prov.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">{b.wallets?.name || prov.label}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">Jatuh tempo: {formatDateShort(b.due_date)}</p>
+                        </div>
+                        <div className="text-right mr-3">
+                          <p className={cn("text-sm font-mono font-bold", isPaid ? "text-green" : isOverdue ? "text-red" : "text-amber")}>{formatRupiah(remaining)}</p>
+                          <span className={cn("text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-full", isPaid ? "bg-green-dim text-green" : isOverdue ? "bg-red-dim text-red" : "bg-amber-dim text-amber")}>
+                            {isPaid ? "LUNAS" : isOverdue ? "OVERDUE" : b.status === "partial" ? "PARTIAL" : "UNPAID"}
+                          </span>
+                        </div>
+                        {!isPaid && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); openModal('paylater_payment', b); }}
+                            className="px-3 py-1.5 bg-[#69f0ae]/10 text-[#69f0ae] border border-[#69f0ae]/20 rounded-md text-[10px] font-bold uppercase tracking-wider hover:bg-[#69f0ae] hover:text-black transition-colors mr-2"
+                          >
+                            Bayar
+                          </button>
+                        )}
+                        <div className="text-muted-foreground">
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className={cn("text-sm font-mono font-bold", isPaid ? "text-green" : isOverdue ? "text-red" : "text-amber")}>{formatRupiah(remaining)}</p>
-                        <span className={cn("text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-full", isPaid ? "bg-green-dim text-green" : isOverdue ? "bg-red-dim text-red" : "bg-amber-dim text-amber")}>
-                          {isPaid ? "LUNAS" : isOverdue ? "OVERDUE" : b.status === "partial" ? "PARTIAL" : "UNPAID"}
-                        </span>
-                      </div>
+
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden bg-card/30"
+                          >
+                            <div className="p-4 space-y-3 border-t border-border/50">
+                              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Riwayat Transaksi & Cicilan</h4>
+                              {items.length === 0 ? (
+                                <p className="text-xs text-muted-foreground text-center py-2">Belum ada detail riwayat.</p>
+                              ) : (
+                                items.map((item: any) => {
+                                  const txn = item.transactions;
+                                  return (
+                                    <div key={item.id} className="flex justify-between items-center text-xs p-2 rounded-lg bg-surface border border-border/50">
+                                      <div>
+                                        <div className="flex items-center gap-1.5">
+                                           <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                                           <p className="font-medium text-foreground">{txn?.description || 'Transaksi PayLater'} <span className="text-blue-400">(Cicilan {item.installment_number}/{item.installment_total})</span></p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="font-mono text-foreground font-bold">{formatRupiahShort(item.amount)}</p>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 })}
@@ -144,9 +213,9 @@ export default function BillsPage() {
       <div className="w-full xl:w-[320px] shrink-0">
         {/* Quick Actions */}
         <div className="w-full h-auto sm:h-[44px] mb-6">
-          <button className="w-full h-full flex items-center justify-center gap-2 py-3 sm:py-0 rounded-xl gradient-accent text-white text-sm font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all">
-            <Plus className="w-4 h-4" /> Tambah Tagihan
-          </button>
+            <button onClick={() => openModal('bill')} className="w-full h-full flex items-center justify-center gap-2 py-3 sm:py-0 rounded-xl gradient-accent text-white text-sm font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all">
+              <Plus className="w-4 h-4" /> Tambah Tagihan
+            </button>
         </div>
 
         <h2 className="h-[20px] text-[13px] font-bold text-foreground mb-3 flex items-center">Analytics</h2>

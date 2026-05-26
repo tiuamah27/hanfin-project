@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ModalType = 'transaction' | 'wallet' | 'transfer' | 'bill' | 'goal' | 'budget' | 'category' | null;
+export type ModalType = 'transaction' | 'wallet' | 'transfer' | 'bill' | 'bill_payment' | 'paylater_payment' | 'goal' | 'budget' | 'budget_group' | 'category' | 'goal_contribution' | null;
 
 interface UIStore {
   sidebarOpen: boolean;

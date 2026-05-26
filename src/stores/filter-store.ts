@@ -24,7 +24,7 @@ export const useFilterStore = create<FilterStore>((set) => ({
   transactionType: 'all',
   transactionCategory: 'all',
   transactionSearch: '',
-  billsStatus: 'all',
+  billsStatus: 'unpaid',
   budgetPeriod: getMonthString(0),
   calendarMonth: getMonthString(0),
   setTransactionMonth: (m) => set({ transactionMonth: m }),
