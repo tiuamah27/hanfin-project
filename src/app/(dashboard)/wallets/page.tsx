@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { useWallets, useAuth, useDeleteWallet, useTransactions } from "@/hooks";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
-import { formatRupiah, formatRupiahShort } from "@/lib/utils/formatters";
+import { formatRupiah, formatRupiahShort, formatDateShort } from "@/lib/utils/formatters";
 import { WALLET_CATEGORIES } from "@/lib/paylater";
 import { cn } from "@/lib/utils";
 import { Plus, Repeat, Trash2, Edit2 } from "lucide-react";
@@ -74,17 +74,21 @@ export default function WalletsPage() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-bold text-foreground">Wallets</h1>
-          <p className="text-xs text-muted-foreground">Kelola semua dompet dan rekening</p>
-        </div>
-      </div>
-
       <div className="flex flex-col xl:flex-row gap-6">
         {/* Left Content (Wallets Grid) */}
-        <div className="flex-1 space-y-6 min-w-0">
+        <div className="flex-1 min-w-0">
+          {/* Header */}
+          <div className="flex-none h-auto sm:h-[44px] mb-6">
+            <div className="flex h-full flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-col justify-center">
+                <h1 className="text-lg font-bold text-foreground leading-none mb-1.5">Wallets</h1>
+                <p className="text-xs text-muted-foreground leading-none">Kelola semua dompet dan rekening</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+
 
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
@@ -114,7 +118,14 @@ export default function WalletsPage() {
             return (
               <div key={cat} className="break-inside-avoid mb-4">
                 <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <span>{catInfo.icon}</span> {catInfo.label}
+                  <div className={cn("w-2 h-2 rounded-sm", 
+                    cat === 'bank' ? "bg-slate-400" :
+                    cat === 'liability' ? "w-0 h-0 rounded-none border-l-[5px] border-r-[5px] border-b-[8px] border-transparent border-b-amber-500" :
+                    cat === 'cash' ? "bg-green-500" :
+                    cat === 'savings' ? "bg-blue-500" :
+                    cat === 'ewallet' ? "bg-purple-500" : "bg-primary")} 
+                  />
+                  {catInfo.label}
                 </h3>
                 <div className="flex flex-col gap-3">
                   {(ws || []).map((w) => {
@@ -205,24 +216,23 @@ export default function WalletsPage() {
         </motion.div>
       )}
       </div>
+      </div>
 
       {/* Right Content (Analytics Panel) */}
-      <div className="w-full xl:w-[320px] shrink-0 space-y-4">
-        <h2 className="text-sm font-bold text-foreground mb-4">Analytics</h2>
-
+      <div className="w-full xl:w-[320px] shrink-0">
         {/* Quick Actions */}
-        <div className="flex gap-3 w-full">
-          <button onClick={() => openModal("transfer")} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl glass-card border border-border text-sm font-medium text-foreground hover:bg-card transition-all shadow-sm">
+        <div className="flex gap-3 w-full h-auto sm:h-[44px] mb-6">
+          <button onClick={() => openModal("transfer")} className="flex-1 h-full flex items-center justify-center gap-2 py-3 sm:py-0 rounded-xl glass-card border border-border text-sm font-medium text-foreground hover:bg-card transition-all shadow-sm">
             <Repeat className="w-4 h-4" /> Transfer
           </button>
-          <button onClick={() => openModal("wallet")} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl gradient-accent text-white text-sm font-semibold shadow-lg shadow-primary/20 hover:opacity-90 transition-all">
+          <button onClick={() => openModal("wallet")} className="flex-1 h-full flex items-center justify-center gap-2 py-3 sm:py-0 rounded-xl gradient-accent text-white text-sm font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all">
             <Plus className="w-4 h-4" /> Tambah Wallet
           </button>
         </div>
         
         {/* Asset Distribution */}
-        <div className="glass-card p-5 border border-border/50 bg-gradient-to-b from-card to-background">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Distribusi Aset</h3>
+        <div className="glass-card p-5 mb-4 border border-border/50">
+           <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-4">Distribusi Aset</h3>
           <div className="space-y-4">
             <div>
               <div className="flex justify-between text-xs mb-2">
@@ -253,7 +263,7 @@ export default function WalletsPage() {
         </div>
 
         {/* Quick Stats */}
-        <div className="glass-card p-5 border border-border/50">
+        <div className="glass-card p-5 mb-4 border border-border/50">
            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Ringkasan Kesehatan</h3>
            <div className="space-y-3">
               <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
@@ -280,12 +290,44 @@ export default function WalletsPage() {
                     {formatRupiahShort(avgMonthlySpending)}
                  </div>
               </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+               <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
                  <div className="text-xs text-muted-foreground">Rasio Utang (Utang/Aset)</div>
                  <div className="text-sm font-bold font-mono text-foreground">
                     {totalAssets > 0 ? ((totalLiabilities / totalAssets) * 100).toFixed(1) : 0}%
                  </div>
               </div>
+           </div>
+        </div>
+
+        {/* Recent Transactions */}
+        <div className="glass-card p-5 mb-4 border border-border/50">
+           <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transaksi Terbaru</h3>
+              <span className="text-[10px] text-primary cursor-pointer hover:underline">Lihat Semua →</span>
+           </div>
+           <div className="space-y-3">
+             {(txns || []).filter(t => t.is_transfer || t.wallets).slice(0, 6).map(t => {
+               const flowText = t.description?.includes("->") || t.description?.includes("→") ? t.description : (t.wallets?.name || "Wallet");
+               return (
+               <div key={t.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-card/50 transition-colors cursor-pointer">
+                  <div className="w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center shrink-0">
+                    <span className="text-sm">{t.wallets?.icon || "💳"}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">{flowText}</p>
+                    <p className="text-[9px] text-muted-foreground">{formatDateShort(t.date)}</p>
+                  </div>
+                  <div className={cn("text-[11px] font-mono font-bold whitespace-nowrap", t.type === "income" ? "text-green" : "text-red")}>
+                    {t.type === "income" ? "+" : "-"}{formatRupiahShort(t.amount)}
+                  </div>
+               </div>
+               );
+             })}
+             {(!txns || txns.filter(t => t.is_transfer || t.wallets).length === 0) && (
+               <div className="text-center py-4">
+                 <p className="text-xs text-muted-foreground">Belum ada transaksi</p>
+               </div>
+             )}
            </div>
         </div>
       </div>
