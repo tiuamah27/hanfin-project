@@ -193,17 +193,47 @@ export default function ReportsPage() {
     window.print();
   };
 
-  const handleExportCSV = () => {
-    if (!chartData || chartData.length === 0) return;
-    const header = "Bulan,Pemasukan,Pengeluaran,Tabungan\n";
-    const csvContent = "data:text/csv;charset=utf-8," + header + chartData.map((e: any) => `${e.label},${e.income},${e.expense},${e.savings}`).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "laporan_hanfin.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportCSV = async () => {
+    try {
+      const { data: txns, error } = await db()
+        .from('transactions')
+        .select('date, description, amount, type, categories(name), wallets(name), profiles!transactions_user_id_fkey(name)')
+        .order('date', { ascending: false });
+      
+      if (error || !txns) {
+        console.error("Gagal mengambil data:", error);
+        return;
+      }
+
+      // Menggunakan titik koma (;) agar langsung terbaca sebagai kolom di Excel (Region Indonesia/Eropa)
+      const header = "Tanggal;Deskripsi;Kategori;Tipe;Jumlah;Wallet;Pengguna\n";
+      const rows = txns.map((t: any) => {
+        const date = t.date;
+        const desc = `"${(t.description || '').replace(/"/g, '""')}"`;
+        const cat = `"${t.categories?.name || ''}"`;
+        const type = t.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+        const amount = t.amount;
+        const wallet = `"${t.wallets?.name || ''}"`;
+        const user = `"${t.profiles?.name || ''}"`;
+        return `${date};${desc};${cat};${type};${amount};${wallet};${user}`;
+      });
+
+      const csvString = header + rows.join("\n");
+      
+      // Menggunakan Blob dengan BOM (Byte Order Mark) agar Excel membaca karakter UTF-8 dengan sempurna
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "detail_transaksi_hanfin.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error during CSV export:", err);
+    }
   };
 
   return (

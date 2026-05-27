@@ -71,7 +71,7 @@ export function SpendingDonut({ timeframe = "Bulanan", variant = "dashboard" }: 
   const badgeText = timeframe === "Tahunan" ? "Tahun Ini" : timeframe === "Kuartal" ? "Kuartal Ini" : "Bulan Ini";
 
   return (
-    <div className="glass-card p-6 h-full flex flex-col">
+    <div className="glass-card p-6 h-auto md:h-full flex flex-col">
       <h3 className="text-sm font-bold text-foreground mb-6">Spending Breakdown</h3>
 
       {isLoading || !chartData ? (
@@ -85,7 +85,7 @@ export function SpendingDonut({ timeframe = "Bulanan", variant = "dashboard" }: 
         <div className="flex flex-col h-full gap-6">
           <div className="flex flex-row justify-between items-start">
             <div className="w-[180px] h-[180px] md:w-[200px] md:h-[200px] relative shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <RadialBarChart 
                   cx="50%" cy="50%" 
                   innerRadius="30%" outerRadius="100%" 
@@ -118,9 +118,9 @@ export function SpendingDonut({ timeframe = "Bulanan", variant = "dashboard" }: 
         </div>
       ) : (
         // REPORTS LAYOUT (Gambar 3: Centered, Donut kiri besar, Legend 1 kolom kanan)
-        <div className="flex-1 flex flex-row items-center justify-center gap-8 md:gap-16 h-full w-full">
+        <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-16 h-auto md:h-full w-full md:overflow-hidden pb-4 md:pb-0">
           {/* Left Side: Donut */}
-          <div className="w-[220px] h-[220px] md:w-[260px] md:h-[260px] relative shrink-0 flex items-center justify-center">
+          <div className="w-[180px] h-[180px] md:w-[260px] md:h-[260px] relative shrink-0 flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <RadialBarChart 
                 cx="50%" cy="50%" 
@@ -136,8 +136,8 @@ export function SpendingDonut({ timeframe = "Bulanan", variant = "dashboard" }: 
           </div>
           
           {/* Right Side: Total + Legend */}
-          <div className="flex flex-col justify-center h-full w-[220px] md:w-[260px] shrink-0">
-            <div className="text-right mb-8">
+          <div className="flex flex-col items-center md:items-end justify-center h-full w-full md:w-[260px] shrink-0">
+            <div className="text-center md:text-right mb-6 md:mb-8">
               <p className="text-3xl md:text-4xl font-bold font-mono text-foreground truncate tracking-tight">Rp {formatRupiahShort(total).replace('Rp', '').trim()}</p>
               <p className="text-xs text-muted-foreground mt-1">Total Pengeluaran</p>
               <div className="inline-block mt-3 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold tracking-wider uppercase border border-primary/20">
@@ -146,12 +146,12 @@ export function SpendingDonut({ timeframe = "Bulanan", variant = "dashboard" }: 
             </div>
 
             {/* Legend */}
-            <div className="mt-auto grid grid-cols-1 gap-y-3.5 text-left ml-auto w-full">
+            <div className="mt-auto grid grid-cols-2 md:grid-cols-1 gap-x-4 gap-y-3.5 text-left w-full md:ml-auto px-4 md:px-0">
               {chartData.map((d, i) => (
-                <div key={d.name} className="flex items-center gap-3 text-xs md:text-sm text-muted-foreground w-full">
-                  <div className="w-3 h-3 rounded-full shrink-0 shadow-sm" style={{ background: COLORS[i % COLORS.length] }} />
+                <div key={d.name} className="flex items-center gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground w-full">
+                  <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full shrink-0 shadow-sm" style={{ background: COLORS[i % COLORS.length] }} />
                   <span className="truncate">{d.name}</span>
-                  <span className="ml-auto font-mono text-[11px] md:text-xs font-semibold text-foreground/80">{total > 0 ? Math.round((d.value / total) * 100) : 0}%</span>
+                  <span className="ml-auto font-mono text-[10px] md:text-xs font-semibold text-foreground/80">{total > 0 ? Math.round((d.value / total) * 100) : 0}%</span>
                 </div>
               ))}
             </div>

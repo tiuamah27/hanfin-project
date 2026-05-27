@@ -6,8 +6,8 @@ import { getProviderInfo } from "@/lib/paylater";
 import { cn } from "@/lib/utils";
 
 export function PayLaterUpcoming() {
-  const { data: bills, isLoading } = usePayLaterBills({ limit: 5 });
-  const unpaid = (bills || []).filter((b) => b.status !== "paid");
+  const { data: bills, isLoading } = usePayLaterBills({ statusFilter: 'unpaid', limit: 5 });
+  const unpaid = bills || [];
   const today = todayISO();
 
   return (

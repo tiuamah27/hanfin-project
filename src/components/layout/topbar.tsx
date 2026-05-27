@@ -36,7 +36,7 @@ export function Topbar() {
     <header
       className={cn(
         "fixed top-4 right-4 z-30 h-14 flex items-center justify-between gap-4 px-6 rounded-2xl",
-        "glass border border-border shadow-sm",
+        "bg-[#0B0F19]/90 backdrop-blur-xl border border-border/50 shadow-sm",
         "transition-all duration-300",
         sidebarCollapsed
           ? "left-[calc(var(--spacing-sidebar-collapsed)+16px)]"
@@ -91,9 +91,28 @@ export function Topbar() {
         {/* User Avatar (mobile) */}
         <button
           onClick={() => setSidebarOpen(true)}
-          className="lg:hidden w-8 h-8 rounded-full gradient-accent flex items-center justify-center text-white text-xs font-bold"
+          className="lg:hidden w-8 h-8 rounded-full relative overflow-hidden"
         >
-          {profile?.name?.charAt(0)?.toUpperCase() || "U"}
+          {profile?.avatar_url ? (
+            <>
+              <img 
+                src={profile.avatar_url} 
+                alt={profile?.name || "User"} 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+              <div className="w-full h-full gradient-accent items-center justify-center text-white text-xs font-bold hidden flex">
+                {profile?.name?.charAt(0)?.toUpperCase() || "U"}
+              </div>
+            </>
+          ) : (
+            <div className="w-full h-full gradient-accent flex items-center justify-center text-white text-xs font-bold">
+              {profile?.name?.charAt(0)?.toUpperCase() || "U"}
+            </div>
+          )}
         </button>
       </div>
     </header>

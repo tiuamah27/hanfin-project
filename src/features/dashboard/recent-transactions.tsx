@@ -7,7 +7,7 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export function RecentTransactions() {
-  const { data: txns, isLoading } = useRecentTransactions(6);
+  const { data: txns, isLoading } = useRecentTransactions(5);
 
   return (
     <div className="glass-card p-5 h-full flex flex-col">
@@ -20,7 +20,7 @@ export function RecentTransactions() {
 
       {isLoading ? (
         <div className="space-y-3 flex-1">
-          {[...Array(4)].map((_, i) => (
+          {[...Array(5)].map((_, i) => (
             <div key={i} className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl skeleton" />
               <div className="flex-1 space-y-1.5">

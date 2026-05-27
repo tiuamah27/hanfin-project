@@ -60,6 +60,7 @@ export function useAuth() {
   const signOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
+    window.location.href = '/login';
   };
 
   return { user, profile, loading, signOut };

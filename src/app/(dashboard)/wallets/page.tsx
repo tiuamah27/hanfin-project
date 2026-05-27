@@ -26,17 +26,42 @@ const GRADIENT_MAP: Record<WalletCategory, string> = {
   liability: "from-red/20 to-red/5 border-red/30",
 };
 
-// Generate deterministic mock sparkline data for UI demo
-const generateSparkline = (id: string, isLiability: boolean) => {
-  // Use simple string hash to keep it deterministic per wallet
-  const seed = id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  let val = isLiability ? 100 : 20;
-  return Array.from({ length: 12 }).map((_, i) => {
-    // Generate pseudo-random variation based on seed
-    const pseudoRand = Math.sin(seed + i);
-    val += (pseudoRand - (isLiability ? 0.3 : 0.4)) * 10;
-    return { value: Math.max(0, val) };
+// Generate actual historical daily balance data for the sparkline
+const generateWalletSparkline = (wallet: any, txns: any[], daysInMonth: number) => {
+  const isLiability = wallet.wallet_category === 'liability';
+  const walletTxns = (txns || []).filter(t => t.wallet_id === wallet.id);
+
+  let monthNetFlow = 0;
+  const dailyFlow: Record<number, number> = {};
+
+  walletTxns.forEach(t => {
+    if (!t.date) return;
+    const day = parseInt(t.date.split('-')[2], 10);
+    if (!dailyFlow[day]) dailyFlow[day] = 0;
+
+    let amount = Number(t.amount);
+    if (isLiability) {
+      if (t.type === 'expense') { monthNetFlow += amount; dailyFlow[day] += amount; }
+      else if (t.type === 'income') { monthNetFlow -= amount; dailyFlow[day] -= amount; }
+    } else {
+      if (t.type === 'income') { monthNetFlow += amount; dailyFlow[day] += amount; }
+      else if (t.type === 'expense') { monthNetFlow -= amount; dailyFlow[day] -= amount; }
+    }
   });
+
+  const currentVal = isLiability ? Number(wallet.used_limit || 0) : Number(wallet.balance || 0);
+  const startBalance = currentVal - monthNetFlow;
+
+  const data = [];
+  let runningBalance = startBalance;
+  
+  for (let i = 1; i <= daysInMonth; i++) {
+    runningBalance += (dailyFlow[i] || 0);
+    data.push({ day: i, value: Math.max(0, runningBalance) });
+  }
+
+  if (data.length === 0) return [{ value: 0 }, { value: 0 }];
+  return data;
 };
 
 export default function WalletsPage() {
@@ -106,113 +131,224 @@ export default function WalletsPage() {
         </div>
       </div>
 
-      {/* Wallet Cards grouped - Masonry */}
+      {/* Wallet Cards grouped */}
       {isLoading ? (
-        <div className="columns-1 md:columns-2 gap-4 space-y-4">
-          {[...Array(6)].map((_, i) => <div key={i} className="h-40 skeleton rounded-2xl break-inside-avoid" />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[...Array(6)].map((_, i) => <div key={i} className="h-40 skeleton rounded-2xl" />)}
         </div>
       ) : (
-        <motion.div variants={stagger} initial="hidden" animate="show" className="columns-1 md:columns-2 gap-4 space-y-4">
-          {Object.entries(grouped).map(([cat, ws]) => {
-            const catInfo = WALLET_CATEGORIES[cat as WalletCategory] || { label: cat, icon: "💳", color: "#888" };
-            return (
-              <div key={cat} className="break-inside-avoid mb-4">
-                <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <div className={cn("w-2 h-2 rounded-sm", 
-                    cat === 'bank' ? "bg-slate-400" :
-                    cat === 'liability' ? "w-0 h-0 rounded-none border-l-[5px] border-r-[5px] border-b-[8px] border-transparent border-b-amber-500" :
-                    cat === 'cash' ? "bg-green-500" :
-                    cat === 'savings' ? "bg-blue-500" :
-                    cat === 'ewallet' ? "bg-purple-500" : "bg-primary")} 
-                  />
-                  {catInfo.label}
-                </h3>
-                <div className="flex flex-col gap-3">
-                  {(ws || []).map((w) => {
-                    const isLiability = w.wallet_category === "liability";
-                    const isCreditCard = w.type === "credit_card";
-                    const limit = w.total_limit || 0;
-                    const used = w.used_limit || 0;
-                    const available = limit - used;
-                    const usagePercent = limit > 0 ? (used / limit) * 100 : 0;
-                    
-                    return (
-                      <motion.div variants={fadeUp} key={w.id} className={cn("glass-card p-4 bg-gradient-to-br relative overflow-hidden group hover:shadow-lg transition-all", GRADIENT_MAP[w.wallet_category as WalletCategory] || "border-border")}>
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3 relative z-10">
-                            <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center shrink-0 shadow-sm">
-                              <span className="text-lg">{w.icon}</span>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{w.name}</h4>
-                              <p className="text-[10px] text-muted-foreground capitalize">{w.type?.replace("_", " ") || "Wallet"}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity relative z-10">
-                            <button onClick={() => openModal("wallet", w)} className="p-1.5 rounded-lg hover:bg-card text-muted-foreground hover:text-primary transition-colors">
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => setWalletToDelete({ id: w.id, name: w.name })} className="p-1.5 rounded-lg hover:bg-red-dim text-muted-foreground hover:text-red transition-colors">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="relative z-10">
-                        {isLiability ? (
-                          <div className="space-y-3">
-                            <div className="flex items-end justify-between">
+        <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          {/* Left Column */}
+          <div className="flex flex-col gap-4">
+            {['cash', 'ewallet', 'savings'].map((cat) => {
+              const ws = grouped[cat];
+              if (!ws || ws.length === 0) return null;
+              const catInfo = WALLET_CATEGORIES[cat as WalletCategory] || { label: cat, icon: "💳", color: "#888" };
+              return (
+                <div key={cat} className="flex flex-col w-full">
+                  <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <div className={cn("w-2 h-2 rounded-sm", 
+                      cat === 'bank' ? "bg-slate-400" :
+                      cat === 'liability' ? "w-0 h-0 rounded-none border-l-[5px] border-r-[5px] border-b-[8px] border-transparent border-b-amber-500" :
+                      cat === 'cash' ? "bg-green-500" :
+                      cat === 'savings' ? "bg-blue-500" :
+                      cat === 'ewallet' ? "bg-purple-500" : "bg-primary")} 
+                    />
+                    {catInfo.label}
+                  </h3>
+                  <div className="flex flex-col gap-3">
+                    {ws.map((w) => {
+                      const isLiability = w.wallet_category === "liability";
+                      const isCreditCard = w.type === "credit_card";
+                      const limit = w.total_limit || 0;
+                      const used = w.used_limit || 0;
+                      const available = limit - used;
+                      const usagePercent = limit > 0 ? (used / limit) * 100 : 0;
+                      
+                      return (
+                        <motion.div variants={fadeUp} key={w.id} className={cn("glass-card p-4 bg-gradient-to-br relative overflow-hidden group hover:shadow-lg transition-all", GRADIENT_MAP[w.wallet_category as WalletCategory] || "border-border")}>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3 relative z-10">
+                              <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center shrink-0 shadow-sm">
+                                <span className="text-lg">{w.icon}</span>
+                              </div>
                               <div>
-                                <p className="text-[10px] text-muted-foreground mb-0.5">Tagihan Berjalan</p>
-                                <p className="text-lg font-bold font-mono text-red">{formatRupiah(used)}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-[10px] text-muted-foreground mb-0.5">Tersedia</p>
-                                <p className="text-sm font-bold font-mono text-foreground">{formatRupiah(available)}</p>
+                                <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{w.name}</h4>
+                                <p className="text-[10px] text-muted-foreground capitalize">{w.type?.replace("_", " ") || "Wallet"}</p>
                               </div>
                             </div>
-                            {isCreditCard && limit > 0 && (
-                              <div className="space-y-1.5">
-                                <div className="h-1.5 rounded-full bg-card overflow-hidden">
-                                  <div className="h-full bg-red transition-all duration-500" style={{ width: `${Math.min(usagePercent, 100)}%` }} />
+                            
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity relative z-10">
+                              <button onClick={() => openModal("wallet", w)} className="p-1.5 rounded-lg hover:bg-card text-muted-foreground hover:text-primary transition-colors">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => setWalletToDelete({ id: w.id, name: w.name })} className="p-1.5 rounded-lg hover:bg-red-dim text-muted-foreground hover:text-red transition-colors">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="relative z-10">
+                          {isLiability ? (
+                            <div className="space-y-3">
+                              <div className="flex items-end justify-between">
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground mb-0.5">Tagihan Berjalan</p>
+                                  <p className="text-lg font-bold font-mono text-red">{formatRupiah(used)}</p>
                                 </div>
-                                <div className="flex justify-between text-[9px] text-muted-foreground">
-                                  <span>{usagePercent.toFixed(1)}% Terpakai</span>
-                                  <span>Limit {formatRupiahShort(limit)}</span>
+                                <div className="text-right">
+                                  <p className="text-[10px] text-muted-foreground mb-0.5">Tersedia</p>
+                                  <p className="text-sm font-bold font-mono text-foreground">{formatRupiah(available)}</p>
                                 </div>
                               </div>
-                            )}
+                              {isCreditCard && limit > 0 && (
+                                <div className="space-y-1.5">
+                                  <div className="h-1.5 rounded-full bg-card overflow-hidden">
+                                    <div className="h-full bg-red transition-all duration-500" style={{ width: `${Math.min(usagePercent, 100)}%` }} />
+                                  </div>
+                                  <div className="flex justify-between text-[9px] text-muted-foreground">
+                                    <span>{usagePercent.toFixed(1)}% Terpakai</span>
+                                    <span>Limit {formatRupiahShort(limit)}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div>
+                              <p className="text-[10px] text-muted-foreground mb-0.5">Saldo Aktif</p>
+                              <p className="text-lg font-bold font-mono text-foreground">{formatRupiah(w.balance || 0)}</p>
+                            </div>
+                          )}
                           </div>
-                        ) : (
-                          <div>
-                            <p className="text-[10px] text-muted-foreground mb-0.5">Saldo Aktif</p>
-                            <p className="text-lg font-bold font-mono text-foreground">{formatRupiah(w.balance || 0)}</p>
-                          </div>
-                        )}
-                        </div>
 
-                        {/* Sparkline Chart */}
-                        <div className="absolute inset-x-0 bottom-0 h-16 opacity-30 pointer-events-none">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={generateSparkline(w.id, isLiability)}>
-                              <defs>
-                                <linearGradient id={`spark-${w.id}`} x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor={isLiability ? "#ef4444" : "#6366f1"} stopOpacity={0.8} />
-                                  <stop offset="95%" stopColor={isLiability ? "#ef4444" : "#6366f1"} stopOpacity={0} />
-                                </linearGradient>
-                              </defs>
-                              <Area type="monotone" dataKey="value" stroke={isLiability ? "#ef4444" : "#6366f1"} fill={`url(#spark-${w.id})`} strokeWidth={2} isAnimationActive={false} />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                          {/* Sparkline Chart */}
+                          <div className="absolute inset-x-0 bottom-0 h-16 opacity-30 pointer-events-none">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+                              <AreaChart data={generateWalletSparkline(w, txns || [], daysInMonth)}>
+                                <defs>
+                                  <linearGradient id={`spark-${w.id}`} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={isLiability ? "#ef4444" : "#6366f1"} stopOpacity={0.8} />
+                                    <stop offset="95%" stopColor={isLiability ? "#ef4444" : "#6366f1"} stopOpacity={0} />
+                                  </linearGradient>
+                                </defs>
+                                <Area type="monotone" dataKey="value" stroke={isLiability ? "#ef4444" : "#6366f1"} fill={`url(#spark-${w.id})`} strokeWidth={2} isAnimationActive={false} />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          {/* Right Column */}
+          <div className="flex flex-col gap-4">
+            {['bank', 'liability'].map((cat) => {
+              const ws = grouped[cat];
+              if (!ws || ws.length === 0) return null;
+              const catInfo = WALLET_CATEGORIES[cat as WalletCategory] || { label: cat, icon: "💳", color: "#888" };
+              return (
+                <div key={cat} className="flex flex-col w-full">
+                  <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <div className={cn("w-2 h-2 rounded-sm", 
+                      cat === 'bank' ? "bg-slate-400" :
+                      cat === 'liability' ? "w-0 h-0 rounded-none border-l-[5px] border-r-[5px] border-b-[8px] border-transparent border-b-amber-500" :
+                      cat === 'cash' ? "bg-green-500" :
+                      cat === 'savings' ? "bg-blue-500" :
+                      cat === 'ewallet' ? "bg-purple-500" : "bg-primary")} 
+                    />
+                    {catInfo.label}
+                  </h3>
+                  <div className="flex flex-col gap-3">
+                    {ws.map((w) => {
+                      const isLiability = w.wallet_category === "liability";
+                      const isCreditCard = w.type === "credit_card";
+                      const limit = w.total_limit || 0;
+                      const used = w.used_limit || 0;
+                      const available = limit - used;
+                      const usagePercent = limit > 0 ? (used / limit) * 100 : 0;
+                      
+                      return (
+                        <motion.div variants={fadeUp} key={w.id} className={cn("glass-card p-4 bg-gradient-to-br relative overflow-hidden group hover:shadow-lg transition-all", GRADIENT_MAP[w.wallet_category as WalletCategory] || "border-border")}>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3 relative z-10">
+                              <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center shrink-0 shadow-sm">
+                                <span className="text-lg">{w.icon}</span>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{w.name}</h4>
+                                <p className="text-[10px] text-muted-foreground capitalize">{w.type?.replace("_", " ") || "Wallet"}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity relative z-10">
+                              <button onClick={() => openModal("wallet", w)} className="p-1.5 rounded-lg hover:bg-card text-muted-foreground hover:text-primary transition-colors">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => setWalletToDelete({ id: w.id, name: w.name })} className="p-1.5 rounded-lg hover:bg-red-dim text-muted-foreground hover:text-red transition-colors">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="relative z-10">
+                          {isLiability ? (
+                            <div className="space-y-3">
+                              <div className="flex items-end justify-between">
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground mb-0.5">Tagihan Berjalan</p>
+                                  <p className="text-lg font-bold font-mono text-red">{formatRupiah(used)}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[10px] text-muted-foreground mb-0.5">Tersedia</p>
+                                  <p className="text-sm font-bold font-mono text-foreground">{formatRupiah(available)}</p>
+                                </div>
+                              </div>
+                              {isCreditCard && limit > 0 && (
+                                <div className="space-y-1.5">
+                                  <div className="h-1.5 rounded-full bg-card overflow-hidden">
+                                    <div className="h-full bg-red transition-all duration-500" style={{ width: `${Math.min(usagePercent, 100)}%` }} />
+                                  </div>
+                                  <div className="flex justify-between text-[9px] text-muted-foreground">
+                                    <span>{usagePercent.toFixed(1)}% Terpakai</span>
+                                    <span>Limit {formatRupiahShort(limit)}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div>
+                              <p className="text-[10px] text-muted-foreground mb-0.5">Saldo Aktif</p>
+                              <p className="text-lg font-bold font-mono text-foreground">{formatRupiah(w.balance || 0)}</p>
+                            </div>
+                          )}
+                          </div>
+
+                          {/* Sparkline Chart */}
+                          <div className="absolute inset-x-0 bottom-0 h-16 opacity-30 pointer-events-none">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+                              <AreaChart data={generateWalletSparkline(w, txns || [], daysInMonth)}>
+                                <defs>
+                                  <linearGradient id={`spark-${w.id}`} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={isLiability ? "#ef4444" : "#6366f1"} stopOpacity={0.8} />
+                                    <stop offset="95%" stopColor={isLiability ? "#ef4444" : "#6366f1"} stopOpacity={0} />
+                                  </linearGradient>
+                                </defs>
+                                <Area type="monotone" dataKey="value" stroke={isLiability ? "#ef4444" : "#6366f1"} fill={`url(#spark-${w.id})`} strokeWidth={2} isAnimationActive={false} />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </motion.div>
       )}
       </div>

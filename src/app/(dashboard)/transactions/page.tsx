@@ -31,28 +31,37 @@ function TransactionRow({ t, onEdit, onDelete }: { t: Transaction; onEdit: () =>
 
   return (
     <div className="flex flex-col hover:bg-card/30 transition-colors border-b border-border/50 last:border-0 group">
-      <div className="flex items-center gap-4 px-5 py-3.5 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+      <div className="flex items-center gap-3 md:gap-4 px-4 md:px-5 py-3 md:py-3.5 cursor-pointer" onClick={() => setExpanded(!expanded)}>
         <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center text-lg shrink-0">
           {t.categories?.icon || "📦"}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 pr-2">
           <p className="text-sm font-medium text-foreground truncate transition-colors">
             {t.description || t.categories?.name || "Transaksi"}
           </p>
-          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground font-mono">
-            <span>{formatDateShort(t.date)}</span>
-            {t.categories?.name && <span className="px-1.5 py-0.5 rounded bg-card text-dim">{t.categories.name}</span>}
-            {t.notes && <span>· {t.notes}</span>}
-            {t.installment_total_month > 1 && <span className="text-amber">· {t.installment_total_month}x cicilan</span>}
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-1 text-[10px] md:text-[11px] text-muted-foreground font-mono">
+            <span className="shrink-0">{formatDateShort(t.date)}</span>
+            {t.categories?.name && <span className="px-1.5 py-0.5 rounded bg-card text-dim shrink-0">{t.categories.name}</span>}
+            {t.notes && <span className="truncate max-w-[80px] md:max-w-[150px]">· {t.notes}</span>}
+            {t.installment_total_month > 1 && <span className="text-amber shrink-0">· {t.installment_total_month}x</span>}
           </div>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="w-28 text-right">
-            <span className={cn("text-sm font-mono font-bold", t.type === "income" ? "text-green" : "text-red")}>
+        <div className="flex items-center gap-2 md:gap-3 shrink-0">
+          <div className="flex flex-col items-end gap-1 text-right">
+            <span className={cn("text-sm font-mono font-bold whitespace-nowrap", t.type === "income" ? "text-green" : "text-red")}>
               {t.type === "income" ? "+" : "-"}{formatRupiah(t.amount)}
             </span>
+            {/* Show badge below amount on mobile */}
+            <div className="flex md:hidden justify-end">
+              {t.is_split ? (
+                <span className="px-1.5 py-0.5 rounded text-[8px] font-bold tracking-wider uppercase border bg-purple/10 text-purple border-purple/20">SPLIT</span>
+              ) : t.profiles?.name ? (
+                <span className={cn("px-1.5 py-0.5 rounded text-[8px] font-bold tracking-wider uppercase border", t.profiles.name.toLowerCase().includes('rose') ? "bg-rose/10 text-rose border-rose/20" : "bg-primary/10 text-primary border-primary/20")}>{t.profiles.name}</span>
+              ) : null}
+            </div>
           </div>
-          <div className="w-14 flex justify-start">
+          
+          <div className="hidden md:flex w-14 justify-start">
             {t.is_split ? (
               <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase border bg-purple/10 text-purple border-purple/20">
                 SPLIT
@@ -70,10 +79,11 @@ function TransactionRow({ t, onEdit, onDelete }: { t: Transaction; onEdit: () =>
               </span>
             ) : null}
           </div>
+
           <div className="relative" ref={menuRef}>
             <button 
               onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }} 
-              className={cn("p-1.5 rounded-lg text-dim hover:text-foreground transition-all hover:bg-surface", menuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100")}
+              className={cn("p-1.5 rounded-lg text-dim hover:text-foreground transition-all hover:bg-surface", menuOpen ? "opacity-100" : "opacity-0 md:group-hover:opacity-100")}
             >
               <MoreVertical className="w-4 h-4" />
             </button>
@@ -230,7 +240,7 @@ export default function TransactionsPage() {
         </div>
 
         {/* Summary */}
-        <div className="flex gap-4 text-xs font-mono ml-auto">
+        <div className="flex gap-4 text-xs font-mono w-full justify-center sm:w-auto sm:justify-start sm:ml-auto">
           <span className="text-green">+{formatRupiahShort(summary.income)}</span>
           <span className="text-red">-{formatRupiahShort(summary.expense)}</span>
           <span className={cn(summary.income - summary.expense >= 0 ? "text-primary" : "text-red")}>

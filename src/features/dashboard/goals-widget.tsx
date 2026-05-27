@@ -30,7 +30,7 @@ export function GoalsWidget() {
         </div>
       ) : (
         <div className="space-y-4 flex-1">
-          {goals.slice(0, 4).map((g, i) => {
+          {goals.slice(0, 3).map((g, i) => {
             const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100));
             return (
               <div key={g.id}>

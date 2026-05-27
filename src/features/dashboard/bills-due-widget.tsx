@@ -22,7 +22,7 @@ export function BillsDueWidget() {
 
       {isLoading ? (
         <div className="space-y-3 flex-1">
-          {[...Array(3)].map((_, i) => (
+          {[...Array(4)].map((_, i) => (
             <div key={i} className="flex justify-between">
               <div className="space-y-1.5">
                 <div className="h-3 w-28 skeleton" />
@@ -40,7 +40,7 @@ export function BillsDueWidget() {
         </div>
       ) : (
         <div className="space-y-1 flex-1">
-          {sorted.slice(0, 5).map((b) => {
+          {sorted.slice(0, 4).map((b) => {
             const isOverdue = b.due_date < today;
             const daysLeft = Math.ceil((new Date(b.due_date).getTime() - new Date(today).getTime()) / 86400000);
             return (

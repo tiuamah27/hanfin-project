@@ -99,7 +99,7 @@ export default function CalendarPage() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 md:space-y-6 pb-10">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between shrink-0">
         <div>
           <h1 className="text-lg font-bold text-foreground">Kalender</h1>
           <p className="text-xs text-muted-foreground">Analisis kas harian & bulanan</p>
@@ -113,10 +113,10 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 md:gap-5">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 md:gap-5 lg:min-h-0">
         
         {/* Left Col: Calendar Grid */}
-        <div className="glass-card p-4 md:p-5 flex flex-col h-full">
+        <div className="glass-card p-4 md:p-5 flex flex-col h-full lg:min-h-0">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-[11px] font-bold text-green uppercase tracking-widest">Heatmap Pengeluaran</h3>
             {/* Legend */}
@@ -131,7 +131,7 @@ export default function CalendarPage() {
           {isLoading ? (
             <div className="flex-1 h-[400px] skeleton rounded-xl" />
           ) : (
-            <div className="flex-1">
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 lg:min-h-0">
               {/* Day Headers */}
               <div className="grid grid-cols-7 gap-1 mb-1.5">
                 {DAYS.map((d) => (
@@ -140,7 +140,7 @@ export default function CalendarPage() {
               </div>
 
               {/* Day Cells */}
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-1 pb-2">
                 {/* Empty cells before 1st */}
                 {Array.from({ length: firstDayOfWeek }, (_, i) => (
                   <div key={`e-${i}`} className="min-h-[60px] md:min-h-[75px] rounded-lg border border-transparent bg-transparent" />
@@ -190,11 +190,12 @@ export default function CalendarPage() {
         </div>
 
         {/* Right Col: Day Detail / Month Summary */}
-        <div className="glass-card p-4 md:p-5 flex flex-col max-h-[600px] overflow-y-auto custom-scrollbar">
-          {!selectedDay ? (
+        <div className="relative h-[600px] lg:h-full">
+          <div className="lg:absolute lg:inset-0 glass-card p-4 md:p-5 flex flex-col h-full lg:min-h-0 overflow-hidden">
+            {!selectedDay ? (
             // ================= MONTHLY SUMMARY =================
-            <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-200">
-              <div className="flex items-center gap-2 mb-4">
+            <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-200 lg:min-h-0">
+              <div className="flex items-center gap-2 mb-4 shrink-0">
                 <CalendarIcon className="w-4 h-4 text-primary" />
                 <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Ringkasan {monthLabel}</h3>
               </div>
@@ -234,11 +235,11 @@ export default function CalendarPage() {
                   </div>
 
                   {monthlySummary.categories.length > 0 ? (
-                    <div className="flex-1 flex flex-col">
-                      <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                    <div className="flex-1 flex flex-col min-h-0">
+                      <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5 shrink-0">
                         <LayoutList className="w-3 h-3" /> Top Pengeluaran
                       </h4>
-                      <div className="space-y-4">
+                      <div className="space-y-4 overflow-y-auto custom-scrollbar pr-2 flex-1">
                         {monthlySummary.categories.map((c, i) => (
                           <div key={i} className="flex flex-col gap-1.5">
                             <div className="flex justify-between items-center text-xs">
@@ -263,8 +264,8 @@ export default function CalendarPage() {
             </div>
           ) : (
             // ================= DAY DETAIL =================
-            <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-200">
-              <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-200 min-h-0">
+              <div className="flex items-center justify-between mb-4 shrink-0">
                 <h3 className="text-sm font-bold text-foreground">
                   {new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" }).format(new Date(selectedDay + "T12:00:00"))}
                 </h3>
@@ -274,7 +275,7 @@ export default function CalendarPage() {
               </div>
 
               {/* Day Summary Cards */}
-              <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="grid grid-cols-2 gap-2 mb-4 shrink-0">
                 <div className="p-2.5 rounded-xl bg-card border border-border/50 text-center">
                   <p className="text-[9px] text-muted-foreground uppercase tracking-widest mb-1">Masuk</p>
                   <p className="text-xs font-bold font-mono text-green">{formatRupiahShort(selectedDayData?.income || 0)}</p>
@@ -285,17 +286,17 @@ export default function CalendarPage() {
                 </div>
               </div>
 
-              <hr className="border-border/30 mb-4" />
+              <hr className="border-border/30 mb-4 shrink-0" />
 
               {/* Transactions List */}
-              <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Daftar Transaksi</h4>
+              <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 shrink-0">Daftar Transaksi</h4>
               {selectedDayTxns.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center py-8 opacity-60">
+                <div className="flex-1 flex flex-col items-center justify-center py-8 opacity-60 min-h-0">
                   <LayoutList className="w-8 h-8 text-muted-foreground mb-2" />
                   <p className="text-xs text-muted-foreground text-center">Tidak ada transaksi di hari ini</p>
                 </div>
               ) : (
-                <div className="flex-1 space-y-2">
+                <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-2 min-h-0">
                   {selectedDayTxns.map((t) => {
                     const isIncome = t.type === "income";
                     return (
@@ -317,6 +318,7 @@ export default function CalendarPage() {
               )}
             </div>
           )}
+          </div>
         </div>
       </div>
     </motion.div>

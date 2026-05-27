@@ -26,10 +26,12 @@ export default function LoginPage() {
         password,
       });
       if (authError) throw authError;
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Login gagal";
+      let message = err instanceof Error ? err.message : "Login gagal";
+      if (message.includes('crypto') || message.includes('subtle') || !window.crypto?.subtle) {
+        message = "Login dari HP via IP (HTTP) diblokir sistem keamanan browser. Gunakan localhost atau HTTPS (ngrok/vercel) untuk login.";
+      }
       setError(message);
     } finally {
       setLoading(false);
@@ -39,15 +41,15 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden px-4">
       {/* Background Glow Effects */}
-      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-[120px]" />
-      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple/5 rounded-full blur-[120px]" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan/3 rounded-full blur-[200px]" />
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan/3 rounded-full blur-[200px] pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
         {/* Logo */}
         <div className="text-center mb-8">
