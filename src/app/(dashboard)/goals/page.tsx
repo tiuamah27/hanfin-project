@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useGoals, useAuth, useTransactions } from "@/hooks";
+import { useGoals, useAuth, useTransactions, useWallets } from "@/hooks";
 import { formatRupiah, formatRupiahShort, formatDate, formatDateShort, todayISO } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui-store";
@@ -9,6 +9,7 @@ import { Plus, Target } from "lucide-react";
 
 export default function GoalsPage() {
   const { data: goals, isLoading } = useGoals();
+  const { data: wallets } = useWallets();
   const { openModal } = useUIStore();
   const today = todayISO();
   const { data: txns } = useTransactions(today.substring(0, 7));
@@ -57,6 +58,7 @@ export default function GoalsPage() {
                           <div>
                             <p className="text-sm font-bold text-foreground leading-tight">{g.name}</p>
                             {g.deadline && <p className="text-[9px] text-muted-foreground font-mono mt-1">Target: {formatDate(g.deadline)}</p>}
+                            {g.wallet_id && <p className="text-[9px] text-primary font-mono mt-0.5">{wallets?.find(w => w.id === g.wallet_id)?.name || 'Memuat...'}</p>}
                           </div>
                         </div>
                         <span className="text-[10px] font-bold font-mono text-foreground">{pct}%</span>

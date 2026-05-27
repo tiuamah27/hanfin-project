@@ -36,10 +36,11 @@ export function getBillingConfig(
   const base = PAYLATER_BILLING_CONFIGS[providerKey || 'default'] || PAYLATER_BILLING_CONFIGS.default;
   const config = { ...base };
 
-  const customCutoff = Number(walletOrOptions.billing_cutoff_day);
-  const customOffset = Number(walletOrOptions.billing_due_offset_days);
+  const isKnownPayLater = providerKey === 'gopay_later' || providerKey === 'shopee_paylater';
+  const customCutoff = isKnownPayLater ? NaN : Number(walletOrOptions.billing_cutoff_day);
+  const customOffset = isKnownPayLater ? NaN : Number(walletOrOptions.billing_due_offset_days);
 
-  if (customCutoff >= 1 && customCutoff <= 31) {
+  if (!Number.isNaN(customCutoff) && customCutoff >= 1 && customCutoff <= 31) {
     config.cutoffDay = customCutoff;
     config.startDay = customCutoff >= 31 ? 1 : customCutoff + 1;
   }

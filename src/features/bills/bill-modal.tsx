@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/modal";
 import { useUIStore } from "@/stores/ui-store";
 import { useAuth, useCreateBill, useUpdateBill, useWallets, useCategories } from "@/hooks";
+import { formatRupiah, formatDate } from "@/lib/utils/formatters";
+import { Edit2 } from "lucide-react";
 
 export function BillModal() {
   const { activeModal, closeModal, modalData } = useUIStore();
@@ -19,10 +21,11 @@ export function BillModal() {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [isRecurring, setIsRecurring] = useState(false);
   const [categoryId, setCategoryId] = useState("");
   const [walletId, setWalletId] = useState("");
   const [notes, setNotes] = useState("");
+  const [recurrenceType, setRecurrenceType] = useState<"none" | "weekly" | "monthly" | "yearly">("none");
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -30,18 +33,24 @@ export function BillModal() {
         setName(editBill.name || "");
         setAmount(editBill.amount?.toString() || "");
         setDueDate(editBill.due_date || new Date().toISOString().split("T")[0]);
-        setIsRecurring(editBill.is_recurring || false);
+        const rMatch = editBill.notes?.match(/^\[R:(weekly|monthly|yearly)\]\s*(.*)$/);
+        const decodedNotes = rMatch ? rMatch[2] : (editBill.notes || "");
+        const decodedRType = rMatch ? rMatch[1] : (editBill.is_recurring ? "monthly" : "none");
+        
+        setRecurrenceType(decodedRType as any);
         setCategoryId(editBill.category_id || "");
         setWalletId(editBill.wallet_id || "");
-        setNotes(editBill.notes || "");
+        setNotes(decodedNotes);
+        setIsEditing(false);
       } else {
         setName("");
         setAmount("");
         setDueDate(new Date().toISOString().split("T")[0]);
-        setIsRecurring(false);
+        setRecurrenceType("none");
         setCategoryId(categories?.[0]?.id || "");
         setWalletId(wallets?.[0]?.id || "");
         setNotes("");
+        setIsEditing(true);
       }
     }
   }, [isOpen, categories, wallets, editBill]);
@@ -50,14 +59,16 @@ export function BillModal() {
     e.preventDefault();
     if (!user || !name || !amount || !dueDate) return;
 
+    const finalNotes = recurrenceType !== "none" ? `[R:${recurrenceType}] ${notes}`.trim() : notes;
+
     const payload = {
       name,
       amount: Number(amount),
       due_date: dueDate,
-      is_recurring: isRecurring,
+      is_recurring: recurrenceType !== "none",
       category_id: categoryId || undefined,
       wallet_id: walletId || undefined,
-      notes: notes || undefined,
+      notes: finalNotes || undefined,
     };
 
     if (editBill) {
@@ -68,8 +79,64 @@ export function BillModal() {
   };
 
   return (
-    <Modal id="bill" title="Tambah Tagihan" description="Catat tagihan reguler yang perlu dibayar">
-      <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+    <Modal id="bill" title={isEditing && editBill ? "Edit Tagihan" : editBill ? "Detail Tagihan" : "Tambah Tagihan"} description={editBill && !isEditing ? "Rincian tagihan reguler" : "Catat tagihan reguler yang perlu dibayar"}>
+      {!isEditing && editBill ? (
+        <div className="space-y-4 mt-2">
+          <div className="p-4 rounded-xl bg-surface/50 border border-border space-y-4">
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Nama Tagihan</p>
+              <p className="text-sm font-semibold text-foreground">{name}</p>
+            </div>
+            
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Nominal</p>
+              <p className="text-lg font-mono font-bold text-foreground">{formatRupiah(Number(amount))}</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Kategori</p>
+                <p className="text-sm text-foreground flex items-center gap-1.5">
+                  {categories?.find(c => c.id === categoryId)?.icon} {categories?.find(c => c.id === categoryId)?.name || "-"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Sumber Dana</p>
+                <p className="text-sm text-foreground flex items-center gap-1.5">
+                  {wallets?.find(w => w.id === walletId)?.icon} {wallets?.find(w => w.id === walletId)?.name || "-"}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Jatuh Tempo</p>
+                <p className="text-sm text-foreground">{dueDate ? formatDate(dueDate) : "-"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Pengulangan</p>
+                <p className="text-sm text-foreground">
+                  {recurrenceType === "none" ? "Tidak Berulang" : recurrenceType === "weekly" ? "Mingguan" : recurrenceType === "monthly" ? "Bulanan" : "Tahunan"}
+                </p>
+              </div>
+            </div>
+
+            {notes && (
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Catatan</p>
+                <p className="text-sm text-muted-foreground">{notes}</p>
+              </div>
+            )}
+          </div>
+          
+          <div className="pt-2">
+            <button onClick={() => setIsEditing(true)} className="w-full py-3.5 bg-card hover:bg-card/80 border border-border/50 text-foreground text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors">
+              <Edit2 className="w-4 h-4" /> Edit Tagihan
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">Nama Tagihan</label>
           <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-surface border border-border rounded-xl text-foreground text-sm focus:outline-none focus:border-primary/50" placeholder="Misal: Tagihan Listrik" />
@@ -105,11 +172,14 @@ export function BillModal() {
             <label className="block text-xs font-medium text-muted-foreground mb-1.5">Tanggal Jatuh Tempo</label>
             <input type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full px-4 py-3 bg-surface border border-border rounded-xl text-foreground text-sm focus:outline-none focus:border-primary/50" />
           </div>
-          <div className="flex flex-col justify-end pb-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} className="rounded border-border bg-surface text-primary focus:ring-primary focus:ring-offset-background" />
-              <span className="text-sm text-foreground">Tagihan Berulang</span>
-            </label>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Pengulangan</label>
+            <select value={recurrenceType} onChange={(e) => setRecurrenceType(e.target.value as any)} className="w-full px-3 py-3 bg-surface border border-border rounded-xl text-foreground text-sm focus:outline-none focus:border-primary/50 appearance-none">
+              <option value="none">Tidak Berulang</option>
+              <option value="weekly">Mingguan</option>
+              <option value="monthly">Bulanan</option>
+              <option value="yearly">Tahunan</option>
+            </select>
           </div>
         </div>
 
@@ -118,12 +188,18 @@ export function BillModal() {
           <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opsional" className="w-full px-4 py-3 bg-surface border border-border rounded-xl text-foreground text-sm focus:outline-none focus:border-primary/50" />
         </div>
 
-        <div className="pt-2">
-          <button type="submit" disabled={createBill.isPending} className="w-full py-3.5 gradient-accent text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity disabled:opacity-50">
+        <div className="pt-2 flex gap-3">
+          {editBill && (
+             <button type="button" onClick={() => setIsEditing(false)} className="w-1/3 py-3.5 bg-surface text-foreground font-semibold rounded-xl text-sm border border-border hover:bg-surface/80 transition-colors">
+               Batal
+             </button>
+          )}
+          <button type="submit" disabled={createBill.isPending || updateBill.isPending} className="flex-1 py-3.5 gradient-accent text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity disabled:opacity-50">
             Simpan Tagihan
           </button>
         </div>
       </form>
+      )}
     </Modal>
   );
 }

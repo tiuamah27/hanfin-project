@@ -78,7 +78,11 @@ export default function BillsPage() {
                   const isOverdue = b.status === "overdue" || (b.status === "unpaid" && b.due_date < today);
                   const isPaid = b.status === "paid";
                   return (
-                    <div key={b.id} className={cn("glass-card p-5 border transition-all", isOverdue ? "border-red/20" : isPaid ? "border-green/20" : "border-amber/15")}>
+                    <div 
+                      key={b.id} 
+                      onClick={() => openModal('bill', b)}
+                      className={cn("glass-card p-5 border transition-all cursor-pointer hover:bg-card/50", isOverdue ? "border-red/20" : isPaid ? "border-green/20" : "border-amber/15")}
+                    >
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p className="text-sm font-semibold text-foreground">{b.name}</p>
@@ -103,7 +107,7 @@ export default function BillsPage() {
                         <span>{formatDateShort(b.due_date)}</span>
                       </div>
                       {!isPaid && (
-                        <button onClick={() => openModal('bill_payment', b)} className="mt-3 w-full py-2 rounded-lg bg-card/80 hover:bg-card border border-border/50 text-primary text-[11px] font-semibold transition-colors">
+                        <button onClick={(e) => { e.stopPropagation(); openModal('bill_payment', b); }} className="mt-3 w-full py-2 rounded-lg bg-card/80 hover:bg-card border border-border/50 text-primary text-[11px] font-semibold transition-colors">
                           Tandai Lunas
                         </button>
                       )}

@@ -25,16 +25,12 @@ async function updateWalletBalance(walletId: string, delta: number) {
     const { error } = await db.from('wallets').update({ used_limit: newUsed }).eq('id', walletId);
     if (error) throw error;
   } else {
-    try {
-      const { error } = await db.rpc('increment_wallet', { wallet_id: walletId, delta });
-      if (error) throw error;
-    } catch {
-      const { error } = await db
-        .from('wallets')
-        .update({ balance: Math.max(0, Number(w.balance || 0) + delta) })
-        .eq('id', walletId);
-      if (error) throw error;
-    }
+    const newBalance = Number(w.balance || 0) + delta;
+    const { error } = await db
+      .from('wallets')
+      .update({ balance: newBalance })
+      .eq('id', walletId);
+    if (error) throw error;
   }
 }
 
@@ -131,7 +127,8 @@ export async function settlePayLaterBill(
     .eq('id', billId);
   if (updateErr) throw updateErr;
 
-  await updateWalletBalance(payWalletId, -actualPay);
+  // Wallet balance deduction is handled by Supabase trigger
+  // when the transaction is inserted below
 
   if (bill.wallet_id) {
     await updateUsedLimit(bill.wallet_id, -actualPay);

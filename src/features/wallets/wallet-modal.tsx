@@ -82,12 +82,11 @@ export function WalletModal() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Saldo Awal</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Saldo (Rp)</label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-mono">Rp</span>
-            <input type="number" required value={balance} onChange={(e) => setBalance(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-surface border border-border rounded-xl text-foreground font-mono focus:outline-none focus:border-primary/50" placeholder="0" disabled={isEdit} />
+            <input type="number" required value={balance} onChange={(e) => setBalance(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-surface border border-border rounded-xl text-foreground font-mono focus:outline-none focus:border-primary/50" placeholder="0" />
           </div>
-          {isEdit && <p className="text-[10px] text-muted-foreground mt-1">Saldo hanya bisa diubah melalui transaksi penyesuaian/transfer.</p>}
         </div>
 
         <div className="pt-2">

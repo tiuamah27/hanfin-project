@@ -3,16 +3,145 @@
 import { motion } from "framer-motion";
 import { useTransactions, useCategories, useWallets, useAuth, useCreateTransaction, useDeleteTransaction } from "@/hooks";
 import { useFilterStore } from "@/stores/filter-store";
-import { formatRupiahShort, formatDateShort, formatRupiah, getMonthString } from "@/lib/utils/formatters";
+import { formatRupiahShort, formatDateShort, formatRupiah, formatDate, getMonthString } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils";
-import { Plus, Search, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Plus, Search, ChevronLeft, ChevronRight, Trash2, MoreVertical, Edit2 } from "lucide-react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { toast } from "@/components/ui/toaster";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { useUIStore } from "@/stores/ui-store";
 import type { Transaction } from "@/types";
 
 const TRANSFER_CATS = ["Transfer", "Transfer Keluar", "Transfer Masuk"];
+
+function TransactionRow({ t, onEdit, onDelete }: { t: Transaction; onEdit: () => void; onDelete: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuOpen && menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
+
+  return (
+    <div className="flex flex-col hover:bg-card/30 transition-colors border-b border-border/50 last:border-0 group">
+      <div className="flex items-center gap-4 px-5 py-3.5 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center text-lg shrink-0">
+          {t.categories?.icon || "📦"}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground truncate transition-colors">
+            {t.description || t.categories?.name || "Transaksi"}
+          </p>
+          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground font-mono">
+            <span>{formatDateShort(t.date)}</span>
+            {t.categories?.name && <span className="px-1.5 py-0.5 rounded bg-card text-dim">{t.categories.name}</span>}
+            {t.notes && <span>· {t.notes}</span>}
+            {t.installment_total_month > 1 && <span className="text-amber">· {t.installment_total_month}x cicilan</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="w-28 text-right">
+            <span className={cn("text-sm font-mono font-bold", t.type === "income" ? "text-green" : "text-red")}>
+              {t.type === "income" ? "+" : "-"}{formatRupiah(t.amount)}
+            </span>
+          </div>
+          <div className="w-14 flex justify-start">
+            {t.is_split ? (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase border bg-purple/10 text-purple border-purple/20">
+                SPLIT
+              </span>
+            ) : t.profiles?.name ? (
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase border",
+                  t.profiles.name.toLowerCase().includes('rose')
+                    ? "bg-rose/10 text-rose border-rose/20"
+                    : "bg-primary/10 text-primary border-primary/20"
+                )}
+              >
+                {t.profiles.name}
+              </span>
+            ) : null}
+          </div>
+          <div className="relative" ref={menuRef}>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }} 
+              className={cn("p-1.5 rounded-lg text-dim hover:text-foreground transition-all hover:bg-surface", menuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100")}
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-32 bg-surface border border-border rounded-xl shadow-xl z-10 py-1 overflow-hidden">
+                <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onEdit(); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-card transition-colors">
+                  <Edit2 className="w-3.5 h-3.5" /> Edit
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onDelete(); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red hover:bg-red-dim transition-colors">
+                  <Trash2 className="w-3.5 h-3.5" /> Hapus
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      {expanded && (
+        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="px-5 pb-4 overflow-hidden text-xs">
+          <div className="p-3.5 rounded-xl bg-surface/50 border border-border flex flex-wrap gap-x-8 gap-y-4">
+            <div>
+              <span className="block text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Kategori</span>
+              <span className="font-medium">{t.categories?.name || "-"}</span>
+            </div>
+            <div>
+              <span className="block text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Dompet</span>
+              <span className="font-medium">{t.wallets?.name || "-"}</span>
+            </div>
+            <div>
+              <span className="block text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Tanggal Lengkap</span>
+              <span className="font-medium font-mono">{formatDate(t.date)}</span>
+            </div>
+            <div>
+              <span className="block text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Input Oleh</span>
+              <span className="font-medium">{t.profiles?.name || "System"}</span>
+            </div>
+            
+            {t.description && (
+              <div>
+                <span className="block text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Deskripsi Utama</span>
+                <span className="font-medium">{t.description}</span>
+              </div>
+            )}
+            
+            {t.notes && (
+              <div>
+                <span className="block text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Catatan Tambahan</span>
+                <span className="font-medium">{t.notes}</span>
+              </div>
+            )}
+            
+            {t.is_split && (
+              <>
+                <div className="border-l border-border/50 pl-6">
+                  <span className="block text-[9px] text-primary uppercase tracking-wider mb-1">Porsi Saya</span>
+                  <span className="font-bold text-primary">{t.split_percentage_payer}%</span>
+                </div>
+                <div>
+                  <span className="block text-[9px] text-rose uppercase tracking-wider mb-1">Porsi Pasangan</span>
+                  <span className="font-bold text-rose">{t.split_percentage_other}%</span>
+                </div>
+              </>
+            )}
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}
 
 export default function TransactionsPage() {
   const { openModal } = useUIStore();
@@ -135,29 +264,7 @@ export default function TransactionsPage() {
         ) : (
           <div className="divide-y divide-border/50">
             {txns.map((t) => (
-              <div key={t.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-card/50 transition-colors group">
-                <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center text-lg shrink-0">
-                  {t.categories?.icon || "📦"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate cursor-pointer hover:text-primary transition-colors" onClick={() => openModal("transaction", t)}>
-                    {t.description || t.categories?.name || "Transaksi"}
-                  </p>
-                  <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground font-mono">
-                    <span>{formatDateShort(t.date)}</span>
-                    {t.categories?.name && <span className="px-1.5 py-0.5 rounded bg-card text-dim">{t.categories.name}</span>}
-                    {t.profiles?.name && <span>· {t.profiles.name}</span>}
-                    {t.is_split && <span className="text-purple">· Split</span>}
-                    {t.installment_total_month > 1 && <span className="text-amber">· {t.installment_total_month}x cicilan</span>}
-                  </div>
-                </div>
-                <span className={cn("text-sm font-mono font-bold shrink-0", t.type === "income" ? "text-green" : "text-red")}>
-                  {t.type === "income" ? "+" : "-"}{formatRupiah(t.amount)}
-                </span>
-                <button onClick={() => setTxnToDelete(t)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-dim text-dim hover:text-red transition-all">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              <TransactionRow key={t.id} t={t} onEdit={() => openModal("transaction", t)} onDelete={() => setTxnToDelete(t)} />
             ))}
           </div>
         )}

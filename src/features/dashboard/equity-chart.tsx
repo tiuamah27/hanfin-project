@@ -32,13 +32,13 @@ export function EquityChart() {
   });
 
   return (
-    <div className="glass-card p-5 h-full">
-      <h3 className="text-sm font-semibold text-foreground mb-4">Tren Saldo (6 Bulan)</h3>
+    <div className="glass-card p-5 h-full flex flex-col">
+      <h3 className="text-sm font-semibold text-foreground mb-4 shrink-0">Tren Saldo (6 Bulan)</h3>
 
       {isLoading || !chartData ? (
-        <div className="h-[240px] skeleton rounded-xl" />
+        <div className="flex-1 skeleton rounded-xl" />
       ) : (
-        <div className="h-[240px]">
+        <div className="flex-1 w-full min-h-[240px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
               <defs>

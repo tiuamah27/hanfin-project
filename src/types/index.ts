@@ -72,7 +72,7 @@ export interface Transaction {
   // Joined relations
   categories?: Category | null;
   wallets?: Pick<Wallet, 'name' | 'icon'> | null;
-  profiles?: Pick<Profile, 'name'> | null;
+  profiles?: Pick<Profile, 'name' | 'avatar_url'> | null;
 }
 
 export interface Category {
@@ -253,6 +253,7 @@ export interface WalletTransferDTO {
   admin_fee?: number;
   date?: string;
   notes?: string;
+  description?: string;
 }
 
 // ---- Billing Cycle Types ----

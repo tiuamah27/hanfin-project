@@ -21,6 +21,9 @@ export const metadata: Metadata = {
     "Premium family finance management dashboard. Track expenses, income, PayLater installments, budgets, goals, and more.",
   keywords: ["finance", "family", "dashboard", "budget", "paylater", "wallet"],
   authors: [{ name: "HanFin Project" }],
+  icons: {
+    icon: "/icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -34,7 +37,7 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable} h-full`}
       suppressHydrationWarning
     >
-      <body className="min-h-full bg-background text-foreground antialiased">
+      <body className="min-h-full bg-background text-foreground antialiased" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

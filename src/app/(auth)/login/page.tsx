@@ -55,9 +55,13 @@ export default function LoginPage() {
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl gradient-accent mb-4 shadow-lg shadow-primary/20"
+            className="mb-4"
           >
-            <span className="text-2xl font-bold text-white">H</span>
+            <img 
+              src="https://slywtekcxvcakeqmabcx.supabase.co/storage/v1/object/public/logo/logo-hanfin.jpg" 
+              alt="HanFin Logo" 
+              className="w-20 h-20 mx-auto rounded-2xl object-cover shadow-lg shadow-primary/20"
+            />
           </motion.div>
           <h1 className="text-2xl font-bold text-foreground">HanFin Project</h1>
           <p className="text-sm text-muted-foreground mt-1">

@@ -1,6 +1,11 @@
 // ============================================
 // Wallet Service — Data Access Layer
 // ============================================
+// NOTE: Wallet balance updates for transactions are handled
+// automatically by a Supabase database trigger.
+// Only use updateBalance for non-transaction operations
+// (e.g., PayLater used_limit adjustments).
+// ============================================
 
 import { createClient } from '@/lib/supabase/client';
 import type { Wallet, CreateWalletDTO, UpdateWalletDTO, WalletTransferDTO } from '@/types';
@@ -74,16 +79,12 @@ export const walletService = {
       const { error } = await db().from('wallets').update({ used_limit: newUsed }).eq('id', walletId);
       if (error) throw error;
     } else {
-      try {
-        const { error } = await db().rpc('increment_wallet', { wallet_id: walletId, delta });
-        if (error) throw error;
-      } catch {
-        const { error } = await db()
-          .from('wallets')
-          .update({ balance: Math.max(0, Number(w.balance || 0) + delta) })
-          .eq('id', walletId);
-        if (error) throw error;
-      }
+      const newBalance = Number(w.balance || 0) + delta;
+      const { error } = await db()
+        .from('wallets')
+        .update({ balance: newBalance })
+        .eq('id', walletId);
+      if (error) throw error;
     }
   },
 
@@ -102,8 +103,68 @@ export const walletService = {
     });
     if (trErr) throw trErr;
 
-    // 2. Update balances
-    await walletService.updateBalance(from_wallet_id, -(amount + admin_fee));
-    await walletService.updateBalance(to_wallet_id, amount);
+    // 2. Find Transfer categories
+    const { data: cats } = await db()
+      .from('categories')
+      .select('id, name')
+      .in('name', ['Transfer Keluar', 'Transfer Masuk', 'Biaya Admin']);
+
+    const keluarCatId = cats?.find((c) => c.name === 'Transfer Keluar')?.id;
+    const masukCatId = cats?.find((c) => c.name === 'Transfer Masuk')?.id;
+    const adminCatId = cats?.find((c) => c.name === 'Biaya Admin')?.id;
+
+    if (!keluarCatId || !masukCatId) {
+      throw new Error('Kategori transfer belum dibuat. Tambahkan kategori "Transfer Keluar" dan "Transfer Masuk".');
+    }
+
+    const transferDate = payload.date || todayISO();
+    const desc = payload.description || `Transfer ke wallet`;
+
+    // 3. Build transaction pairs
+    const txns: any[] = [];
+
+    // Outgoing transfer
+    txns.push({
+      user_id: userId,
+      type: 'expense',
+      amount: amount,
+      date: transferDate,
+      category_id: keluarCatId,
+      wallet_id: from_wallet_id,
+      description: desc,
+      notes: notes,
+    });
+
+    // Incoming transfer
+    txns.push({
+      user_id: userId,
+      type: 'income',
+      amount: amount,
+      date: transferDate,
+      category_id: masukCatId,
+      wallet_id: to_wallet_id,
+      description: desc,
+      notes: notes,
+    });
+
+    // Admin fee (if any)
+    if (admin_fee > 0) {
+      txns.push({
+        user_id: userId,
+        type: 'expense',
+        amount: admin_fee,
+        date: transferDate,
+        category_id: adminCatId || keluarCatId,
+        wallet_id: from_wallet_id,
+        description: desc,
+        notes: notes,
+      });
+    }
+
+    const { error: txErr } = await db().from('transactions').insert(txns);
+    if (txErr) throw txErr;
+
+    // Wallet balances are updated automatically by Supabase trigger
+    // (triggered by the transaction inserts above)
   },
 };

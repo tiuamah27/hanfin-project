@@ -1,10 +1,15 @@
 // ============================================
 // Transaction Service — Data Access Layer
 // ============================================
+// NOTE: Wallet balance updates are handled automatically by a
+// Supabase database trigger on the transactions table.
+// Do NOT add manual walletService.updateBalance() calls here.
+// ============================================
 
 import { createClient } from '@/lib/supabase/client';
-import type { Transaction, CreateTransactionDTO, UpdateTransactionDTO, TransactionFilters } from '@/types';
-import { walletService } from './wallet-service';
+import type { Transaction, CreateTransactionDTO, UpdateTransactionDTO, TransactionFilters, Wallet } from '@/types';
+import { isPayLaterWallet } from '@/lib/paylater/billing-cycle';
+import { generatePayLaterInstallments } from '@/lib/paylater/installment-generator';
 
 const db = () => createClient();
 
@@ -63,7 +68,7 @@ export const transactionService = {
   async getByDateRange(start: string, end: string): Promise<Transaction[]> {
     const { data, error } = await db()
       .from('transactions')
-      .select('*, categories(name,icon,color)')
+      .select('*, categories(name,icon,color), profiles!transactions_user_id_fkey(name, avatar_url)')
       .gte('date', start)
       .lte('date', end);
     if (error) throw error;
@@ -78,20 +83,25 @@ export const transactionService = {
       .single();
     if (error) throw error;
 
-    // Update wallet balance
-    const delta = payload.type === 'income' ? payload.amount : -payload.amount;
-    await walletService.updateBalance(payload.wallet_id, delta);
+    const txn = data as Transaction;
 
-    return data as Transaction;
+    // Post-creation hooks (e.g., PayLater installments)
+    if (txn.type === 'expense' && txn.wallet_id) {
+      const { data: walletData } = await db().from('wallets').select('*').eq('id', txn.wallet_id).single();
+      if (walletData && isPayLaterWallet(walletData as Wallet)) {
+        const tenor = txn.installment_total_month || 1;
+        await generatePayLaterInstallments(txn, tenor, walletData as Wallet, userId);
+      }
+    }
+
+    // Wallet balance is updated automatically by Supabase trigger
+    return txn;
   },
 
   async update(payload: UpdateTransactionDTO, oldTxn: Transaction): Promise<Transaction> {
     const { id, ...rest } = payload;
 
-    // Reverse old balance
-    const oldDelta = oldTxn.type === 'income' ? -oldTxn.amount : oldTxn.amount;
-    await walletService.updateBalance(oldTxn.wallet_id, oldDelta);
-
+    // Wallet balance adjustments are handled automatically by Supabase trigger
     const { data, error } = await db()
       .from('transactions')
       .update(rest)
@@ -100,21 +110,14 @@ export const transactionService = {
       .single();
     if (error) throw error;
 
-    // Apply new balance
-    const txn = data as Transaction;
-    const newDelta = txn.type === 'income' ? txn.amount : -txn.amount;
-    await walletService.updateBalance(txn.wallet_id, newDelta);
-
-    return txn;
+    return data as Transaction;
   },
 
   async delete(txn: Transaction): Promise<void> {
     const { error } = await db().from('transactions').delete().eq('id', txn.id);
     if (error) throw error;
 
-    // Reverse balance
-    const delta = txn.type === 'income' ? -txn.amount : txn.amount;
-    await walletService.updateBalance(txn.wallet_id, delta);
+    // Wallet balance reversal is handled automatically by Supabase trigger
   },
 
   async getTodayTransactions(): Promise<Transaction[]> {

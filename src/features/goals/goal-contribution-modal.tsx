@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/modal";
 import { useUIStore } from "@/stores/ui-store";
-import { useAuth, useWallets, useCreateTransaction } from "@/hooks";
+import { useAuth, useWallets, useCreateTransaction, useTransferWallet, useContributeGoal } from "@/hooks";
 import { formatRupiahShort } from "@/lib/utils/formatters";
 
 export function GoalContributionModal() {
@@ -31,26 +31,57 @@ export function GoalContributionModal() {
     }
   }, [isOpen, wallets]);
 
+  const transferWallet = useTransferWallet();
+  const contributeGoal = useContributeGoal();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !amount || !walletId || !goal) return;
 
-    createTxn.mutate(
-      {
-        payload: {
-          wallet_id: walletId,
-          category_id: "goals", // using a generic ID or goal ID
-          type: "expense", // money leaving the wallet
-          amount: Number(amount) + (Number(adminFee) || 0),
-          date,
-          description: `Kontribusi Goal: ${goal.name}`,
-          notes,
-          is_transfer: true,
-        } as any,
-        userId: user.id
-      },
-      { onSuccess: closeModal }
-    );
+    const totalAmount = Number(amount) + (Number(adminFee) || 0);
+
+    const onComplete = () => {
+      contributeGoal.mutate(
+        { goalId: goal.id, amount: Number(amount), walletId },
+        { onSuccess: closeModal }
+      );
+    };
+
+    if (goal.wallet_id && goal.wallet_id !== walletId) {
+      // Transfer to goal wallet
+      transferWallet.mutate(
+        {
+          payload: {
+            from_wallet_id: walletId,
+            to_wallet_id: goal.wallet_id,
+            amount: Number(amount),
+            admin_fee: Number(adminFee) || 0,
+            date,
+            description: `Transfer ke Goal ${goal.name}`,
+            notes: notes || undefined,
+          },
+          userId: user.id
+        },
+        { onSuccess: onComplete }
+      );
+    } else {
+      // Just expense
+      createTxn.mutate(
+        {
+          payload: {
+            wallet_id: walletId,
+            category_id: null, 
+            type: "expense",
+            amount: totalAmount,
+            date,
+            description: `Goal: ${goal.name}`,
+            notes,
+          } as any,
+          userId: user.id
+        },
+        { onSuccess: onComplete }
+      );
+    }
   };
 
   if (!goal) return null;
@@ -58,12 +89,22 @@ export function GoalContributionModal() {
   return (
     <Modal id="goal_contribution" title="Tambah Kontribusi" description={`Goal: ${goal.name}`}>
       <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-xs text-muted-foreground uppercase tracking-wider">Masuk ke:</span>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border">
-            <span className="text-sm">{goal.icon}</span>
-            <span className="text-xs font-semibold text-foreground">{goal.name}</span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4 p-2 bg-surface border border-border rounded-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Goal:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs">{goal.icon}</span>
+              <span className="text-xs font-semibold text-foreground">{goal.name}</span>
+            </div>
           </div>
+          {goal.wallet_id && (
+            <div className="flex items-center gap-2 border-l border-border pl-4">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Ke Dompet:</span>
+              <span className="text-xs font-semibold text-primary">
+                {wallets?.find(w => w.id === goal.wallet_id)?.name || "Wallet Goal"}
+              </span>
+            </div>
+          )}
         </div>
 
         <div>

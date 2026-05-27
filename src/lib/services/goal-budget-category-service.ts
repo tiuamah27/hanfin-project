@@ -41,9 +41,7 @@ export const goalService = {
     return data as Goal;
   },
 
-  async contribute(goalId: string, amount: number, walletId: string): Promise<void> {
-    const { walletService } = await import('./wallet-service');
-
+  async contribute(goalId: string, amount: number, _walletId: string): Promise<void> {
     // Update goal current_amount
     const { data: goal, error: gErr } = await db().from('goals').select('current_amount').eq('id', goalId).single();
     if (gErr) throw gErr;
@@ -51,8 +49,8 @@ export const goalService = {
     const { error: uErr } = await db().from('goals').update({ current_amount: newAmount }).eq('id', goalId);
     if (uErr) throw uErr;
 
-    // Deduct wallet balance
-    await walletService.updateBalance(walletId, -amount);
+    // Wallet balance deduction is handled by Supabase trigger
+    // when the associated transaction is created
   },
 
   async delete(id: string): Promise<void> {

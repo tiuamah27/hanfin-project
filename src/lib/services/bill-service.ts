@@ -60,8 +60,18 @@ export const billService = {
     if (bill.is_recurring && bill.due_date) {
       const currentDue = new Date(bill.due_date);
       const nextDue = new Date(currentDue);
-      // Default to monthly since we removed recurrence_type
-      nextDue.setMonth(nextDue.getMonth() + 1);
+      
+      const rMatch = bill.notes?.match(/^\[R:(weekly|monthly|yearly)\]/);
+      const rType = rMatch ? rMatch[1] : 'monthly';
+      if (rType === 'daily') {
+        nextDue.setDate(nextDue.getDate() + 1);
+      } else if (rType === 'weekly') {
+        nextDue.setDate(nextDue.getDate() + 7);
+      } else if (rType === 'yearly') {
+        nextDue.setFullYear(nextDue.getFullYear() + 1);
+      } else {
+        nextDue.setMonth(nextDue.getMonth() + 1);
+      }
 
       const { error: insertError } = await db().from('bills').insert({
         user_id: bill.user_id,
@@ -69,7 +79,6 @@ export const billService = {
         amount: bill.amount,
         due_date: nextDue.toISOString().split('T')[0],
         is_recurring: true,
-        recurrence_type: bill.recurrence_type,
         category_id: bill.category_id,
         wallet_id: bill.wallet_id,
         notes: bill.notes,
