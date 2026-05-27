@@ -84,8 +84,8 @@ export function TransactionModal() {
         split_percentage_other: splitOther,
       } : {
         is_split: false,
-        split_percentage_payer: null,
-        split_percentage_other: null,
+        split_percentage_payer: undefined,
+        split_percentage_other: undefined,
       })
     };
 

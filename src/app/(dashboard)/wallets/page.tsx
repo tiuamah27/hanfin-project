@@ -140,7 +140,7 @@ export default function WalletsPage() {
         <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           {/* Left Column */}
           <div className="flex flex-col gap-4">
-            {['cash', 'ewallet', 'savings'].map((cat) => {
+            {(['cash', 'ewallet', 'savings'] as WalletCategory[]).map((cat) => {
               const ws = grouped[cat];
               if (!ws || ws.length === 0) return null;
               const catInfo = WALLET_CATEGORIES[cat as WalletCategory] || { label: cat, icon: "💳", color: "#888" };
@@ -246,7 +246,7 @@ export default function WalletsPage() {
 
           {/* Right Column */}
           <div className="flex flex-col gap-4">
-            {['bank', 'liability'].map((cat) => {
+            {(['bank', 'liability'] as WalletCategory[]).map((cat) => {
               const ws = grouped[cat];
               if (!ws || ws.length === 0) return null;
               const catInfo = WALLET_CATEGORIES[cat as WalletCategory] || { label: cat, icon: "💳", color: "#888" };

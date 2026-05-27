@@ -176,13 +176,13 @@ export function EquityChart() {
                   boxShadow: "0 10px 15px -3px rgba(0,0,0,0.5)"
                 }}
                 labelStyle={{ color: "#94a3b8", fontWeight: "bold", marginBottom: 4 }}
-                formatter={(v: unknown, name: string) => {
+                formatter={(value: any, name: any) => {
                   const labelMap: Record<string, string> = {
                     income: "Pemasukan",
                     expense: "Pengeluaran",
                     savings: "Saving"
                   };
-                  return [formatRupiahShort(Number(v)), labelMap[name] || name];
+                  return [formatRupiahShort(Number(value)), labelMap[name as string] || name];
                 }}
               />
               {showIncome && (
