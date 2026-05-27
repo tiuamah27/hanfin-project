@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/modal";
 import { useUIStore } from "@/stores/ui-store";
-import { useAuth, useWallets, useCreateTransaction, usePayPaylaterBill } from "@/hooks";
+import { useAuth, useWallets, useCreateTransaction, usePayPaylaterBill, useCategories } from "@/hooks";
 import { formatRupiahShort, formatRupiah } from "@/lib/utils/formatters";
 import { getProviderInfo } from "@/lib/paylater";
 import { toast } from "@/components/ui/toaster";
@@ -17,6 +17,7 @@ export function PaylaterPaymentModal() {
   const { data: wallets } = useWallets();
   const createTxn = useCreateTransaction();
   const payPaylater = usePayPaylaterBill(); 
+  const { data: categories } = useCategories("expense");
 
   const isOpen = activeModal === "paylater_payment";
   const bill = modalData as any; // PayLaterBill object
@@ -38,16 +39,22 @@ export function PaylaterPaymentModal() {
 
     try {
       const payAmount = Number(amount);
-      
+      // Find the Bayar PayLater category if it exists
+      const payLaterCat = categories?.find(c => c.name.toLowerCase() === "bayar paylater");
+
+      const itemsCount = (bill.paylater_bill_items || []).length;
+      const notesText = itemsCount > 0 ? `${itemsCount} transaksi cicilan` : "Pembayaran cicilan";
+
       // 1. Create expense transaction
       await createTxn.mutateAsync({
         payload: {
           wallet_id: walletId,
-          category_id: "tagihan", // Default generic ID for Tagihan if none
+          category_id: payLaterCat?.id || undefined,
           type: "expense",
           amount: payAmount,
           date: new Date().toISOString().split("T")[0],
-          description: `Bayar PayLater: ${bill.provider}`,
+          description: `Bayar ${getProviderInfo(bill.provider).label}`,
+          notes: notesText,
         } as any,
         userId: user.id
       });

@@ -36,7 +36,7 @@ export function BillPaymentModal() {
       await createTxn.mutateAsync({
         payload: {
           wallet_id: walletId,
-          category_id: bill.category_id || "tagihan", 
+          category_id: bill.category_id || undefined,
           type: "expense",
           amount: bill.amount,
           date: new Date().toISOString().split("T")[0],

@@ -61,8 +61,17 @@ export default function ReportsPage() {
     queryKey: ["reports_comprehensive_v4", timeframe],
     queryFn: async () => {
       const months = [];
-      let runningCumulative = 0;
       
+      // 1. Fetch Jago Wallet(s)
+      const { data: jagoWallets } = await db().from('wallets').select('*').ilike('name', '%jago%');
+      const jagoWalletIds = jagoWallets?.map(w => w.id) || [];
+      let currentJagoBalance = jagoWallets?.reduce((sum, w) => sum + Number(w.balance), 0) || 0;
+
+      // 2. Fetch all Jago transactions after the start of our chart period to work backwards
+      // Or just fetch all Jago txns to be safe and calculate exact balances over time.
+      const { data: allJagoTxns } = await db().from('transactions').select('amount, type, date').in('wallet_id', jagoWalletIds);
+      const jagoTxnsSafe = allJagoTxns || [];
+
       const currentMonthUsers: Record<string, { income: number; expense: number; name: string; role: string; avatar_url: string | null }> = {
         "Tiu": { name: "Tiu", income: 0, expense: 0, role: "SUAMI", avatar_url: null },
         "Rose": { name: "Rose", income: 0, expense: 0, role: "ISTRI", avatar_url: null }
@@ -95,21 +104,31 @@ export default function ReportsPage() {
 
         const txns = await transactionService.getByDateRange(start, end);
         
+        // Income & Expense calculation (ignoring transfers)
         const incomeTxns = txns.filter((t) => t.type === "income" && !TRANSFER_CATS.includes(t.categories?.name || ""));
         const expenseTxns = txns.filter((t) => t.type === "expense" && !TRANSFER_CATS.includes(t.categories?.name || ""));
         
         const inc = incomeTxns.reduce((s, t) => s + Number(t.amount), 0);
         const exp = expenseTxns.reduce((s, t) => s + Number(t.amount), 0);
-        const savings = inc - exp;
         
-        runningCumulative += savings;
+        // Savings = Net flow of Bank Jago for this period
+        const periodJagoTxns = jagoTxnsSafe.filter(t => t.date >= start.split('T')[0] && t.date <= end.split('T')[0]);
+        const jagoInc = periodJagoTxns.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+        const jagoExp = periodJagoTxns.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+        const savings = jagoInc - jagoExp; // Net flow for the month
+        
+        // Calculate historical balance at the end of this period
+        // It equals Current Balance - (Sum of net flow AFTER this period)
+        const txnsAfterPeriod = jagoTxnsSafe.filter(t => t.date > end.split('T')[0]);
+        const flowAfter = txnsAfterPeriod.reduce((s, t) => s + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)), 0);
+        const periodEndBalance = currentJagoBalance - flowAfter;
 
         months.push({ 
           label, 
           income: inc, 
           expense: exp, 
           savings: savings,
-          cumulativeSavings: runningCumulative
+          cumulativeSavings: periodEndBalance
         });
 
         // User stats for the latest period
@@ -302,8 +321,8 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(56,189,248,0.06)" />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatRupiahShort(v)} />
-                  <Tooltip contentStyle={{ background: "rgba(11,18,32,0.95)", border: "1px solid rgba(56,189,248,0.15)", borderRadius: 10, fontSize: 12 }} formatter={(v: unknown) => [formatRupiahShort(Number(v)), "Tabungan"]} />
-                  <Area type="monotone" dataKey="savings" stroke="#a78bfa" strokeWidth={2} fill="url(#savGrad)" dot={false} />
+                  <Tooltip contentStyle={{ background: "rgba(11,18,32,0.95)", border: "1px solid rgba(56,189,248,0.15)", borderRadius: 10, fontSize: 12 }} formatter={(v: unknown) => [formatRupiahShort(Number(v)), "Saldo Bank Jago"]} />
+                  <Area type="monotone" dataKey="cumulativeSavings" stroke="#a78bfa" strokeWidth={2} fill="url(#savGrad)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -339,7 +358,7 @@ export default function ReportsPage() {
                   <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatRupiahShort(v)} />
                   <Tooltip 
                     contentStyle={{ background: "rgba(11,18,32,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }} 
-                    formatter={(v: any, name: any) => [formatRupiah(Number(v)), name === "income" ? "Pemasukan" : name === "expense" ? "Pengeluaran" : "Tabungan"]} 
+                    formatter={(v: any, name: any) => [formatRupiah(Number(v)), name === "income" ? "Pemasukan" : name === "expense" ? "Pengeluaran" : "Net Tabungan Jago"]} 
                   />
                   <Line type="monotone" dataKey="income" stroke="#34d399" strokeWidth={2} dot={{ r: 3, fill: "#34d399", strokeWidth: 0 }} />
                   <Line type="monotone" dataKey="expense" stroke="#f87171" strokeWidth={2} dot={{ r: 3, fill: "#f87171", strokeWidth: 0 }} />
