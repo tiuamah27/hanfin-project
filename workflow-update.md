@@ -18,6 +18,21 @@ git pull
 docker compose up -d --build
 ```
 
+### Jika `git pull` gagal (Aborting / Conflict)
+Jika ada error karena file lokal berubah di server sehingga `git pull` dibatalkan, paksa server agar identik dengan versi Github dengan menjalankan:
+```bash
+git fetch --all
+git reset --hard origin/main
+```
+Pastikan update sudah berhasil masuk dengan mengecek log terakhir:
+```bash
+git log -n 1
+```
+Jika pesannya sudah sesuai (update terbaru), lanjutkan dengan build ulang:
+```bash
+docker compose up -d --build
+```
+
 ---
 
 # Notes
