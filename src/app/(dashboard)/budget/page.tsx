@@ -81,7 +81,7 @@ export default function BudgetPage() {
     });
 
     // Build the final structure
-    const result: { id: string; name: string; icon: string; categories: any[] }[] = [];
+    const result: { id: string; name: string; icon: string; rawGroup?: any; categories: any[] }[] = [];
 
     Object.entries(groupMap).forEach(([gid, catMap]) => {
       const bg = bgLookup[gid];
