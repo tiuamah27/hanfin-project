@@ -61,6 +61,7 @@ export interface Transaction {
   date: string;
   description: string | null;
   notes: string | null;
+  budget_item_id: string | null;
   is_split: boolean;
   split_percentage_payer: number | null;
   split_percentage_other: number | null;
@@ -97,6 +98,7 @@ export interface Bill {
   recurrence_type: RecurrenceType | null;
   category_id: string | null;
   wallet_id: string | null;
+  budget_item_id: string | null;
   notes: string | null;
   created_at: string;
 }
@@ -169,6 +171,19 @@ export interface BudgetGroup {
   created_at: string;
 }
 
+export interface BudgetItem {
+  id: string;
+  user_id: string;
+  budget_group_id: string | null;
+  category_id: string | null;
+  name: string;
+  amount: number;
+  budget_type: 'variable' | 'fixed' | 'goal' | 'sinking' | null;
+  priority: 'wajib' | 'penting' | 'fleksibel' | null;
+  notes: string | null;
+  created_at: string;
+}
+
 export interface WalletTransfer {
   id: string;
   user_id: string;
@@ -188,17 +203,19 @@ export interface WalletTransfer {
 
 export interface CreateTransactionDTO {
   wallet_id: string;
-  category_id: string | null;
+  category_id?: string | null;
   type: TransactionType;
   amount: number;
   date: string;
   description?: string;
   notes?: string;
+  budget_item_id?: string | null;
   is_split?: boolean;
   split_percentage_payer?: number;
   split_percentage_other?: number;
   installment_total_month?: number;
   paylater_bill_group_id?: string;
+  goal_id?: string | null;
 }
 
 export interface UpdateTransactionDTO extends Partial<CreateTransactionDTO> {
@@ -228,6 +245,7 @@ export interface CreateBillDTO {
   recurrence_type?: RecurrenceType;
   category_id?: string;
   wallet_id?: string;
+  budget_item_id?: string | null;
   notes?: string;
 }
 
@@ -254,6 +272,7 @@ export interface WalletTransferDTO {
   date?: string;
   notes?: string;
   description?: string;
+  goal_id?: string | null;
 }
 
 // ---- Billing Cycle Types ----

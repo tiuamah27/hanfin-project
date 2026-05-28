@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { walletService } from '@/lib/services/wallet-service';
 import { transactionService } from '@/lib/services/transaction-service';
 import { billService } from '@/lib/services/bill-service';
-import { goalService, budgetService, categoryService } from '@/lib/services/goal-budget-category-service';
+import { goalService, budgetService, budgetItemService, categoryService } from '@/lib/services/goal-budget-category-service';
 import { toast } from '@/components/ui/toaster';
 import type { TransactionFilters, CreateTransactionDTO, UpdateTransactionDTO, Transaction, CreateWalletDTO, UpdateWalletDTO, WalletTransferDTO, CreateBillDTO, CreateGoalDTO, CreateBudgetDTO } from '@/types';
 
@@ -118,8 +118,10 @@ export function useTransferWallet() {
     mutationFn: ({ payload, userId }: { payload: WalletTransferDTO; userId: string }) =>
       walletService.transfer(payload, userId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['wallets'] });
       qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['wallets'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['goals'] });
       toast.success('Transfer berhasil');
     },
     onError: (e: Error) => toast.error(e.message),
@@ -150,6 +152,7 @@ export function useCreateTransaction() {
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['wallets'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['goals'] });
       toast.success('Transaksi berhasil disimpan');
     },
     onError: (e: Error) => toast.error(e.message),
@@ -165,6 +168,7 @@ export function useUpdateTransaction() {
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['wallets'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['goals'] });
       toast.success('Transaksi berhasil diperbarui');
     },
     onError: (e: Error) => toast.error(e.message),
@@ -179,6 +183,7 @@ export function useDeleteTransaction() {
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['wallets'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['goals'] });
       toast.success('Transaksi berhasil dihapus');
     },
     onError: (e: Error) => toast.error(e.message),
@@ -314,6 +319,73 @@ export function useCreateBudgetGroup() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['budget-groups'] });
       toast.success('Budget Group berhasil ditambahkan');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateBudgetGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: any }) => budgetService.updateBudgetGroup(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budget-groups'] });
+      toast.success('Budget Group berhasil diperbarui');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteBudgetGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => budgetService.deleteBudgetGroup(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budget-groups'] });
+      toast.success('Budget Group berhasil dihapus');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useBudgetItems(month?: string) {
+  return useQuery({
+    queryKey: ['budget-items', month],
+    queryFn: () => budgetItemService.getAll(),
+  });
+}
+
+export function useCreateBudgetItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ payload, userId }: { payload: any; userId: string }) => budgetItemService.create(payload, userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budget-items'] });
+      toast.success('Item berhasil ditambahkan');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateBudgetItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: any }) => budgetItemService.update(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budget-items'] });
+      toast.success('Item berhasil diperbarui');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteBudgetItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => budgetItemService.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budget-items'] });
+      toast.success('Item berhasil dihapus');
     },
     onError: (e: Error) => toast.error(e.message),
   });

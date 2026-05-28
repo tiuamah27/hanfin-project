@@ -41,6 +41,7 @@ export function BillPaymentModal() {
           amount: bill.amount,
           date: new Date().toISOString().split("T")[0],
           description: `Bayar Tagihan: ${bill.name}`,
+          budget_item_id: bill.budget_item_id || undefined,
         } as any,
         userId: user.id
       });

@@ -84,12 +84,12 @@ export function EquityChart() {
         </div>
 
         {/* Timeframe Controls */}
-        <div className="flex bg-slate-950/40 p-0.5 rounded-lg border border-slate-800/40">
+        <div className="flex w-full sm:w-auto bg-slate-950/40 p-0.5 rounded-lg border border-slate-800/40">
           {(["Bulanan", "Kuartal", "Tahunan"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTimeframe(t)}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-all duration-200 ${
+              className={`flex-1 sm:flex-none px-2 py-1.5 sm:px-3 sm:py-1 text-[10px] sm:text-xs text-center font-medium rounded-md transition-all duration-200 ${
                 timeframe === t
                   ? "bg-slate-800 text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"

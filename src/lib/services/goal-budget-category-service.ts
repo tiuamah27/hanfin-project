@@ -3,7 +3,7 @@
 // ============================================
 
 import { createClient } from '@/lib/supabase/client';
-import type { Goal, CreateGoalDTO, Budget, CreateBudgetDTO, BudgetGroup, Category } from '@/types';
+import type { Goal, CreateGoalDTO, Budget, CreateBudgetDTO, BudgetGroup, Category, BudgetItem } from '@/types';
 
 const db = () => createClient();
 
@@ -61,35 +61,6 @@ export const goalService = {
 
 // ---- Budget Service ----
 export const budgetService = {
-  async getByPeriod(period: string): Promise<Budget[]> {
-    const { data, error } = await db()
-      .from('budgets')
-      .select('*, categories(name,icon,color), budget_groups(name,icon,color)')
-      .eq('period', period);
-    if (error) throw error;
-    return (data || []) as Budget[];
-  },
-
-  async create(payload: CreateBudgetDTO, userId: string): Promise<Budget> {
-    const { data, error } = await db()
-      .from('budgets')
-      .insert({ ...payload, user_id: userId })
-      .select()
-      .single();
-    if (error) throw error;
-    return data as Budget;
-  },
-
-  async update(id: string, payload: Partial<CreateBudgetDTO>): Promise<Budget> {
-    const { data, error } = await db().from('budgets').update(payload).eq('id', id).select().single();
-    if (error) throw error;
-    return data as Budget;
-  },
-
-  async delete(id: string): Promise<void> {
-    const { error } = await db().from('budgets').delete().eq('id', id);
-    if (error) throw error;
-  },
 
   async getBudgetGroups(): Promise<BudgetGroup[]> {
     const { data, error } = await db().from('budget_groups').select('*').order('name');
@@ -97,33 +68,54 @@ export const budgetService = {
     return (data || []) as BudgetGroup[];
   },
 
-  async createBudgetGroup(payload: { name: string; icon: string; color: string; amount?: number; is_recurring?: boolean; notes?: string | null; category_ids?: string[] }, userId: string): Promise<BudgetGroup> {
+  async createBudgetGroup(payload: { name: string; icon: string; color: string; is_recurring?: boolean; notes?: string | null; category_ids?: string[] }, userId: string): Promise<BudgetGroup> {
     const { data: groupData, error: groupError } = await db()
       .from('budget_groups')
-      .insert({ ...payload, user_id: userId })
+      .insert({ 
+        name: payload.name, 
+        icon: payload.icon, 
+        color: payload.color, 
+        is_recurring: payload.is_recurring,
+        notes: payload.notes,
+        user_id: userId 
+      })
       .select()
       .single();
     if (groupError) throw groupError;
 
-    // Create individual budgets for the current month if categories are selected
+    // Update selected categories to reference this budget group
     if (payload.category_ids && payload.category_ids.length > 0) {
-      const period = new Date().toISOString().substring(0, 7);
-      const amountPerCat = Math.floor((payload.amount || 0) / payload.category_ids.length);
-      
-      const budgetsToInsert = payload.category_ids.map(catId => ({
-        user_id: userId,
-        category_id: catId,
-        budget_group_id: groupData.id,
-        amount: amountPerCat,
-        period: period,
-        notes: payload.notes
-      }));
-
-      const { error: budgetError } = await db().from('budgets').insert(budgetsToInsert);
-      if (budgetError) console.error("Failed to insert initial group budgets:", budgetError);
+      const { error: catError } = await db()
+        .from('categories')
+        .update({ budget_group_id: groupData.id })
+        .in('id', payload.category_ids);
+      if (catError) console.error("Failed to update category group references:", catError);
     }
 
     return groupData as BudgetGroup;
+  },
+
+  async updateBudgetGroup(id: string, payload: { name?: string; icon?: string; color?: string; is_recurring?: boolean; notes?: string | null; category_ids?: string[] }): Promise<BudgetGroup> {
+    const updatePayload: any = { ...payload };
+    delete updatePayload.category_ids; // Don't try to save this array to the DB table
+
+    const { data, error } = await db()
+      .from('budget_groups')
+      .update(updatePayload)
+      .eq('id', id)
+      .select();
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      throw new Error("Gagal menyimpan: Data tidak ditemukan atau terhalang izin akses RLS (Update Policy).");
+    }
+    
+    return data[0] as BudgetGroup;
+  },
+
+  async deleteBudgetGroup(id: string): Promise<void> {
+    const { error } = await db().from('budget_groups').delete().eq('id', id);
+    if (error) throw error;
   },
 };
 
@@ -150,4 +142,48 @@ export const categoryService = {
     if (error) throw error;
     return data as Category;
   },
+};
+
+// ---- Budget Item Service ----
+export const budgetItemService = {
+  async getAll(): Promise<BudgetItem[]> {
+    const { data, error } = await db().from('budget_items').select('*').order('name');
+    if (error) throw error;
+    return (data || []) as BudgetItem[];
+  },
+
+  async getByCategory(categoryId: string): Promise<BudgetItem[]> {
+    const { data, error } = await db().from('budget_items').select('*').eq('category_id', categoryId).order('name');
+    if (error) throw error;
+    return (data || []) as BudgetItem[];
+  },
+
+  async create(payload: Partial<BudgetItem>, userId: string): Promise<BudgetItem> {
+    const { data, error } = await db()
+      .from('budget_items')
+      .insert({ ...payload, user_id: userId })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as BudgetItem;
+  },
+
+  async update(id: string, payload: Partial<BudgetItem>): Promise<BudgetItem> {
+    const { data, error } = await db()
+      .from('budget_items')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as BudgetItem;
+  },
+
+  async delete(id: string): Promise<void> {
+    const { error } = await db()
+      .from('budget_items')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  }
 };

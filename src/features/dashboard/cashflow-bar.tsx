@@ -105,17 +105,11 @@ export function CashflowBar() {
           <div className="grid grid-cols-3 gap-2 sm:gap-3 border-t border-slate-800/50 pt-4 shrink-0">
             {data.last3DaysStats.map((stat, idx) => (
               <div key={idx} className="flex flex-col bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/50">
-                <span className="text-[10px] font-medium text-slate-400 mb-2 text-center">{stat.label}</span>
-                <div className="flex justify-between items-center px-1">
-                  <div className="flex flex-col">
-                    <span className="text-[8px] uppercase tracking-wider text-emerald-500/70 font-semibold">In</span>
-                    <span className="text-xs font-bold text-emerald-400">{formatRupiahShort(stat.income)}</span>
-                  </div>
-                  <div className="w-[1px] h-6 bg-slate-800/60 mx-2" />
-                  <div className="flex flex-col items-end">
-                    <span className="text-[8px] uppercase tracking-wider text-rose-500/70 font-semibold">Out</span>
-                    <span className="text-xs font-bold text-rose-400">{formatRupiahShort(stat.expense)}</span>
-                  </div>
+                <span className="text-[10px] font-medium text-slate-400 mb-1 text-center">{stat.label}</span>
+                <div className="flex justify-between items-center px-0.5">
+                  <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 truncate">{formatRupiahShort(stat.income)}</span>
+                  <div className="w-[1px] h-3.5 bg-slate-800/60 mx-1.5 shrink-0" />
+                  <span className="text-[10px] sm:text-[11px] font-bold text-rose-400 truncate">{formatRupiahShort(stat.expense)}</span>
                 </div>
               </div>
             ))}

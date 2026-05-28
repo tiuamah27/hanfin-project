@@ -145,6 +145,7 @@ export const walletService = {
       wallet_id: to_wallet_id,
       description: desc,
       notes: notes,
+      goal_id: payload.goal_id || null,
     });
 
     // Admin fee (if any)

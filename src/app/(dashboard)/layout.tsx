@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui-store";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
-import { BottomNav } from "@/components/layout/bottom-nav";
 import { ModalProvider } from "@/components/providers/modal-provider";
 
 export default function DashboardLayout({
@@ -21,7 +20,7 @@ export default function DashboardLayout({
 
       <main
         className={cn(
-          "pt-[var(--spacing-topbar)] pb-[calc(var(--spacing-bottom-nav)+1rem)] lg:pb-6 transition-all duration-300",
+          "pt-[var(--spacing-topbar)] pb-6 transition-all duration-300",
           sidebarCollapsed
             ? "lg:pl-[var(--spacing-sidebar-collapsed)]"
             : "lg:pl-[var(--spacing-sidebar)]"
@@ -32,7 +31,6 @@ export default function DashboardLayout({
         </div>
       </main>
 
-      <BottomNav />
       <ModalProvider />
     </div>
   );

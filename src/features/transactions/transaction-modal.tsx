@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/modal";
 import { useUIStore } from "@/stores/ui-store";
-import { useAuth, useWallets, useCategories, useCreateTransaction, useUpdateTransaction } from "@/hooks";
+import { useAuth, useWallets, useCategories, useBudgetItems, useCreateTransaction, useUpdateTransaction } from "@/hooks";
 import { isPayLaterWallet, calculateBilling } from "@/lib/paylater";
 import { formatRupiah, formatDate, formatDateShort } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ export function TransactionModal() {
   const [date, setDate] = useState("");
   const [walletId, setWalletId] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [budgetItemId, setBudgetItemId] = useState<string>("");
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
   const [isSplit, setIsSplit] = useState(false);
@@ -43,6 +44,7 @@ export function TransactionModal() {
         setDate(modalData.date);
         setWalletId(modalData.wallet_id);
         setCategoryId(modalData.category_id);
+        setBudgetItemId(modalData.budget_item_id || "");
         setDescription(modalData.description || "");
         setNotes(modalData.notes || "");
         setIsSplit(modalData.is_split || false);
@@ -55,6 +57,7 @@ export function TransactionModal() {
         setDate(new Date().toISOString().split("T")[0]);
         setWalletId(wallets?.[0]?.id || "");
         setCategoryId("");
+        setBudgetItemId("");
         setDescription("");
         setNotes("");
         setIsSplit(false);
@@ -75,6 +78,7 @@ export function TransactionModal() {
       date,
       wallet_id: walletId,
       category_id: categoryId,
+      budget_item_id: budgetItemId || null,
       description,
       notes,
       installment_total_month: isPayLater && type === "expense" ? installmentMonth : 1,
@@ -102,7 +106,9 @@ export function TransactionModal() {
     }
   };
 
+  const { data: budgetItems } = useBudgetItems();
   const activeCategories = categories?.filter((c) => c.type === type) || [];
+  const activeBudgetItems = budgetItems?.filter(bi => bi.category_id === categoryId) || [];
 
   return (
     <Modal id="transaction" title={isEdit ? "Edit Transaksi" : "Tambah Transaksi"}>
@@ -137,6 +143,17 @@ export function TransactionModal() {
             </select>
           </div>
         </div>
+
+        {/* Dynamic Budget Item Dropdown */}
+        {categoryId && activeBudgetItems.length > 0 && (
+          <div className="bg-primary/5 p-3 rounded-xl border border-primary/20">
+            <label className="block text-xs font-medium text-primary mb-1.5">Rincian Budget (Opsional)</label>
+            <select value={budgetItemId} onChange={(e) => setBudgetItemId(e.target.value)} className="w-full px-4 py-3 bg-surface border border-border rounded-xl text-foreground text-sm focus:outline-none focus:border-primary/50 appearance-none">
+              <option value="">-- Tidak Spesifik (Hanya Kategori) --</option>
+              {activeBudgetItems.map((bi) => <option key={bi.id} value={bi.id}>{bi.name}</option>)}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">Deskripsi / Judul</label>

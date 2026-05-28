@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/modal";
 import { useUIStore } from "@/stores/ui-store";
-import { useAuth, useCreateBill, useUpdateBill, useWallets, useCategories } from "@/hooks";
+import { useAuth, useCreateBill, useUpdateBill, useWallets, useCategories, useBudgetItems } from "@/hooks";
 import { formatRupiah, formatDate } from "@/lib/utils/formatters";
 import { Edit2 } from "lucide-react";
 
@@ -23,9 +23,13 @@ export function BillModal() {
   const [dueDate, setDueDate] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [walletId, setWalletId] = useState("");
+  const [budgetItemId, setBudgetItemId] = useState("");
   const [notes, setNotes] = useState("");
   const [recurrenceType, setRecurrenceType] = useState<"none" | "weekly" | "monthly" | "yearly">("none");
   const [isEditing, setIsEditing] = useState(false);
+
+  const { data: budgetItems } = useBudgetItems();
+  const activeBudgetItems = (budgetItems || []).filter(bi => bi.category_id === categoryId);
 
   useEffect(() => {
     if (isOpen) {
@@ -40,6 +44,7 @@ export function BillModal() {
         setRecurrenceType(decodedRType as any);
         setCategoryId(editBill.category_id || "");
         setWalletId(editBill.wallet_id || "");
+        setBudgetItemId(editBill.budget_item_id || "");
         setNotes(decodedNotes);
         setIsEditing(false);
       } else {
@@ -49,6 +54,7 @@ export function BillModal() {
         setRecurrenceType("none");
         setCategoryId(categories?.[0]?.id || "");
         setWalletId(wallets?.[0]?.id || "");
+        setBudgetItemId("");
         setNotes("");
         setIsEditing(true);
       }
@@ -68,6 +74,7 @@ export function BillModal() {
       is_recurring: recurrenceType !== "none",
       category_id: categoryId || undefined,
       wallet_id: walletId || undefined,
+      budget_item_id: budgetItemId || undefined,
       notes: finalNotes || undefined,
     };
 
@@ -166,6 +173,17 @@ export function BillModal() {
             </select>
           </div>
         </div>
+
+        {/* Dynamic Budget Item Dropdown */}
+        {categoryId && activeBudgetItems.length > 0 && (
+          <div className="bg-primary/5 p-3 rounded-xl border border-primary/20 -mt-1 mb-3">
+            <label className="block text-xs font-medium text-primary mb-1.5">Rincian Budget (Opsional)</label>
+            <select value={budgetItemId} onChange={(e) => setBudgetItemId(e.target.value)} className="w-full px-4 py-3 bg-surface border border-border rounded-xl text-foreground text-sm focus:outline-none focus:border-primary/50 appearance-none">
+              <option value="">-- Tidak Spesifik (Hanya Kategori) --</option>
+              {activeBudgetItems.map((bi) => <option key={bi.id} value={bi.id}>{bi.name}</option>)}
+            </select>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>

@@ -41,10 +41,7 @@ export function GoalContributionModal() {
     const totalAmount = Number(amount) + (Number(adminFee) || 0);
 
     const onComplete = () => {
-      contributeGoal.mutate(
-        { goalId: goal.id, amount: Number(amount), walletId },
-        { onSuccess: closeModal }
-      );
+      closeModal();
     };
 
     if (goal.wallet_id && goal.wallet_id !== walletId) {
@@ -59,6 +56,7 @@ export function GoalContributionModal() {
             date,
             description: `Transfer ke Goal ${goal.name}`,
             notes: notes || undefined,
+            goal_id: goal.id,
           },
           userId: user.id
         },
@@ -76,6 +74,7 @@ export function GoalContributionModal() {
             date,
             description: `Goal: ${goal.name}`,
             notes,
+            goal_id: goal.id,
           } as any,
           userId: user.id
         },
