@@ -44,7 +44,7 @@ export const walletService = {
   async create(payload: CreateWalletDTO, userId: string): Promise<Wallet> {
     const { data, error } = await db()
       .from('wallets')
-      .insert({ ...payload, user_id: userId, is_active: true })
+      .insert({ ...payload, user_id: userId, is_active: true, type: payload.wallet_category })
       .select()
       .single();
     if (error) throw error;
