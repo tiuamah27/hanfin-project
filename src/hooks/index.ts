@@ -297,12 +297,7 @@ export function useContributeGoal() {
 }
 
 // ---- Budget Hooks ----
-export function useBudgets(period: string) {
-  return useQuery({
-    queryKey: ['budgets', period],
-    queryFn: () => budgetService.getByPeriod(period),
-  });
-}
+
 
 export function useBudgetGroups() {
   return useQuery({
@@ -391,18 +386,7 @@ export function useDeleteBudgetItem() {
   });
 }
 
-export function useCreateBudget() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ payload, userId }: { payload: CreateBudgetDTO; userId: string }) =>
-      budgetService.create(payload, userId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['budgets'] });
-      toast.success('Budget berhasil disimpan');
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
+
 
 // ---- Category Hooks ----
 export function useCategories(type?: 'income' | 'expense') {
