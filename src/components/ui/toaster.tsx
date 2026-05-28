@@ -48,6 +48,23 @@ export function Toaster() {
     addToastFn = (message: string, type: ToastType) => {
       const id = Date.now().toString() + Math.random().toString(36).slice(2);
       setToasts((prev) => [...prev, { id, message, type }]);
+      
+      // Also push to notification history if it's not a generic error
+      if (type !== 'error') {
+        const { addNotification } = require('@/stores/notification-store').useNotificationStore.getState();
+        let notifType: "system" | "transaction" | "wallet" | "bill" | "goal" | "budget" = "system";
+        if (message.toLowerCase().includes('transaksi')) notifType = "transaction";
+        else if (message.toLowerCase().includes('wallet') || message.toLowerCase().includes('transfer')) notifType = "wallet";
+        else if (message.toLowerCase().includes('tagihan')) notifType = "bill";
+        else if (message.toLowerCase().includes('goal') || message.toLowerCase().includes('kontribusi')) notifType = "goal";
+        else if (message.toLowerCase().includes('budget') || message.toLowerCase().includes('item')) notifType = "budget";
+
+        addNotification({
+          type: notifType,
+          title: message,
+        });
+      }
+
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
       }, 4000);

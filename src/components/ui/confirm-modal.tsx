@@ -1,6 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -11,10 +13,18 @@ interface ConfirmModalProps {
 }
 
 export function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: ConfirmModalProps) {
-  return (
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -34,6 +44,7 @@ export function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: Co
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
