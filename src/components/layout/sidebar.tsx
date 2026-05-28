@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui-store";
 import { useBillsUnpaidCount, useAuth } from "@/hooks";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -43,19 +43,7 @@ export function Sidebar() {
   const { sidebarOpen, setSidebarOpen, sidebarCollapsed, toggleSidebarCollapsed } = useUIStore();
   const { data: unpaidCount } = useBillsUnpaidCount();
   const { profile, signOut } = useAuth();
-  
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setIsProfileMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -138,28 +126,11 @@ export function Sidebar() {
 
         {/* User Profile */}
         {profile && (
-          <div className="relative mt-2" ref={profileMenuRef}>
-            <AnimatePresence>
-              {isProfileMenuOpen && !sidebarCollapsed && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute bottom-full left-0 right-0 mb-2 p-1.5 rounded-xl bg-card border border-border/50 shadow-xl overflow-hidden flex flex-col gap-0.5 z-50"
-                >
-                  <button onClick={signOut} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium text-red hover:bg-red-dim transition-colors text-left w-full">
-                    <LogOut className="w-3.5 h-3.5" /> Logout
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <button
-              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+          <div className="mt-2 space-y-2">
+            <div
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-card/50 hover:bg-card transition-colors text-left border border-transparent focus:outline-none",
-                sidebarCollapsed && "justify-center px-0 pointer-events-none"
+                "w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-card/50 border border-transparent",
+                sidebarCollapsed && "justify-center px-0 flex-col gap-2"
               )}
             >
               <div className="relative shrink-0">
@@ -179,15 +150,23 @@ export function Sidebar() {
                 </div>
               </div>
               {!sidebarCollapsed && (
-                <>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-foreground truncate">{profile.name}</p>
-                    <p className="text-[10px] text-muted-foreground capitalize">{profile.role}</p>
-                  </div>
-                  <ChevronUp className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200 shrink-0", isProfileMenuOpen && "rotate-180")} />
-                </>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">{profile.name}</p>
+                  <p className="text-[10px] text-muted-foreground capitalize">{profile.role}</p>
+                </div>
               )}
-            </button>
+              
+              <button 
+                onClick={() => setShowLogoutConfirm(true)}
+                className={cn(
+                  "p-1.5 rounded-lg text-muted-foreground hover:bg-red/10 hover:text-red transition-colors shrink-0",
+                  sidebarCollapsed && "w-8 h-8 flex items-center justify-center bg-card/80 hover:bg-red/10"
+                )}
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -227,6 +206,52 @@ export function Sidebar() {
               {sidebarContent}
             </motion.aside>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Logout Confirmation Modal */}
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLogoutConfirm(false)}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm glass-card border border-border/50 shadow-2xl p-6 rounded-2xl flex flex-col items-center text-center"
+            >
+              <div className="w-12 h-12 rounded-full bg-red/10 flex items-center justify-center mb-4">
+                <LogOut className="w-6 h-6 text-red" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground mb-2">Keluar dari HanFin?</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Anda harus login kembali untuk mengakses dashboard keuangan Anda.
+              </p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-border/50 text-sm font-medium hover:bg-card transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLogoutConfirm(false);
+                    signOut();
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-red text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-lg shadow-red/20"
+                >
+                  Ya, Keluar
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </>
