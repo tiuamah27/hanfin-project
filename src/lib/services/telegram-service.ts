@@ -1,0 +1,526 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase Client for backend (bypassing RLS or using anon key)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+// Hardcoded mapping from Chat ID to Supabase User ID
+// Format in env: TELEGRAM_CHAT_MAP='{"123456789": "supabase-uuid-1", "987654321": "supabase-uuid-2"}'
+// For simpler setup: TELEGRAM_USER_ID_1=uuid
+function getUserIdFromChatId(chatId: string | number): string | null {
+  const envMap = process.env.TELEGRAM_CHAT_MAP;
+  if (envMap) {
+    try {
+      const map = JSON.parse(envMap);
+      return map[chatId.toString()] || null;
+    } catch (e) {
+      console.error('Invalid TELEGRAM_CHAT_MAP format');
+    }
+  }
+  
+  // Fallback to simpler env vars
+  if (chatId.toString() === process.env.TELEGRAM_CHAT_ID_1) return process.env.TELEGRAM_USER_ID_1 || null;
+  if (chatId.toString() === process.env.TELEGRAM_CHAT_ID_2) return process.env.TELEGRAM_USER_ID_2 || null;
+
+  return null;
+}
+
+export const telegramService = {
+  async handleWebhook(body: any) {
+    if (!TELEGRAM_BOT_TOKEN) throw new Error('TELEGRAM_BOT_TOKEN is not set');
+
+    const message = body.message;
+    const callbackQuery = body.callback_query;
+
+    if (message && (message.text || message.photo)) {
+      await this.processMessage(message.chat.id, message);
+    } else if (callbackQuery) {
+      await this.processCallbackQuery(
+        callbackQuery.message.chat.id, 
+        callbackQuery.data, 
+        callbackQuery.id, 
+        callbackQuery.message.message_id,
+        callbackQuery.message.text || ''
+      );
+    }
+  },
+
+  async processMessage(chatId: number, messageObj: any) {
+    const userId = getUserIdFromChatId(chatId);
+    
+    if (!userId) {
+      await this.sendMessage(chatId, 'Maaf, akun Telegram Anda belum terdaftar di sistem HanFin.');
+      return;
+    }
+
+    const text = messageObj.text || messageObj.caption || '';
+
+    // Handle /lapor or /start commands
+    if (text === '/start' || text === '/lapor') {
+      const buttons = [
+        [{ text: `⬇️ Pemasukan`, callback_data: `cmd_income` }, { text: `⬆️ Pengeluaran`, callback_data: `cmd_expense` }],
+        [{ text: `📊 Laporan Keuangan Bulan Ini`, callback_data: `cmd_report` }]
+      ];
+      await this.sendMessage(chatId, `Halo! 👋\nMau mencatat transaksi atau melihat kondisi keuanganmu hari ini?`, {
+        reply_markup: { inline_keyboard: buttons }
+      });
+      return;
+    }
+
+    let isEdit = false;
+    let oldData = '';
+    if (messageObj?.reply_to_message?.text?.includes('MODE REVISI')) {
+      isEdit = true;
+      oldData = messageObj.reply_to_message.text;
+      
+      // Auto-delete the revision chat messages to keep history clean!
+      try {
+        await this.deleteMessage(chatId, messageObj.reply_to_message.message_id); // delete bot's MODE REVISI prompt
+        await this.deleteMessage(chatId, messageObj.message_id); // delete user's reply message
+      } catch (e) {
+        console.error("Failed to delete revision messages", e);
+      }
+    }
+
+    // Send loading message and capture its ID
+    const loadingMsg = await this.sendMessage(chatId, isEdit ? '⏳ Memproses revisi...' : (messageObj.photo ? '📸 Membaca struk dengan AI...' : '⏳ Sedang memproses pesan...'));
+    const loadingMsgId = loadingMsg?.result?.message_id;
+    
+    try {
+      // Fetch Wallets, Categories, and Budget Items
+      const { data: wallets, error: wError } = await supabase.from('wallets').select('*').in('wallet_category', ['cash', 'bank', 'ewallet']);
+      const { data: categories, error: cError } = await supabase.from('categories').select('*');
+      const { data: budgetItems, error: bError } = await supabase.from('budget_items').select('*');
+
+      if (wError) throw new Error("Supabase Wallets Error: " + wError.message);
+      if (cError) throw new Error("Supabase Categories Error: " + cError.message);
+
+      // 2. Prepare hierarchical category and budget list for AI
+      let categoryTreeText = '';
+      if (categories) {
+        categoryTreeText = categories.map(c => {
+          const relatedBudgets = budgetItems?.filter(b => b.category_id === c.id) || [];
+          const budgetNames = relatedBudgets.map(b => b.name).join(', ');
+          return `- ${c.name} ${budgetNames ? `(Pilihan Budget: ${budgetNames})` : ''}`;
+        }).join('\n');
+      }
+
+      // Handle Image if exists
+      let imagePart = null;
+      if (messageObj.photo && messageObj.photo.length > 0) {
+        const largestPhoto = messageObj.photo[messageObj.photo.length - 1];
+        const fileRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${largestPhoto.file_id}`);
+        const fileData = await fileRes.json();
+        
+        if (fileData.ok) {
+          const imgRes = await fetch(`https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${fileData.result.file_path}`);
+          const arrayBuffer = await imgRes.arrayBuffer();
+          const base64 = Buffer.from(arrayBuffer).toString('base64');
+          imagePart = {
+            inlineData: {
+              data: base64,
+              mimeType: "image/jpeg"
+            }
+          };
+        }
+      }
+
+      const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+      
+      let prompt = '';
+      if (isEdit) {
+        prompt = `
+Kamu adalah asisten pencatat keuangan. Pengguna ingin merevisi data transaksi sebelumnya.
+Data Sebelumnya:
+"""
+${oldData}
+"""
+Koreksi dari Pengguna: "${text}"
+
+Daftar Kategori & Pilihan Budget:
+${categoryTreeText}
+Daftar Dompet: ${wallets?.map(w => w.name).join(', ')}
+
+Perbaiki data JSON sebelumnya berdasarkan koreksi. Kembalikan HANYA JSON murni (tanpa markdown), struktur:
+{
+  "amount": number (angka saja),
+  "description": string,
+  "notes": string,
+  "type": "expense" | "income",
+  "categoryName": string (pilih NAMA persis dari Daftar Kategori),
+  "budgetItemName": string (opsional, HANYA BOLEH memilih dari Pilihan Budget yang ada di dalam Kategori terpilih),
+  "walletName": string (pilih NAMA persis dari Daftar Dompet)
+}`;
+      } else {
+        const baseMsg = messageObj.photo ? (text || "Ini struk/bukti transaksi. Tolong analisa total dan deskripsinya.") : `Pesan: "${text}"`;
+        prompt = `
+Kamu adalah asisten pencatat keuangan. Ekstrak informasi dari pesan atau gambar pengguna.
+${baseMsg}
+
+Daftar Kategori & Pilihan Budget:
+${categoryTreeText}
+Daftar Dompet: ${wallets?.map(w => w.name).join(', ')}
+
+Kembalikan hasil dalam format JSON yang valid (tanpa markdown), dengan struktur:
+{
+  "amount": number (angka saja, amati struk atau pesan untuk total pengeluaran/pemasukan),
+  "description": string (deskripsi utama, misal "Belanja Bulanan", "Makan Siang", "Gaji"),
+  "notes": string (opsional, detail item dari struk/pesan, pisahkan dengan koma),
+  "type": "expense" | "income" (amati apakah ini uang masuk atau keluar),
+  "categoryName": string (opsional, WAJIB pilih NAMA persis dari Daftar Kategori di atas jika sesuai),
+  "budgetItemName": string (opsional, HANYA BOLEH memilih dari Pilihan Budget yang ada di dalam Kategori terpilih. Jika tidak ada, isi null),
+  "walletName": string (opsional, WAJIB pilih NAMA persis dari Daftar Dompet di atas jika disebut)
+}
+Pastikan hanya me-return string JSON murni tanpa \`\`\`json.
+`;
+      }
+
+      const aiInput = imagePart ? [prompt, imagePart] : prompt;
+      const result = await model.generateContent(aiInput as any);
+      const response = await result.response;
+      let jsonText = response.text().trim();
+      
+      const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("Format balasan AI tidak valid: " + jsonText);
+
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      // 3. Match Data
+      let matchedWallet = null;
+      if (parsed.walletName && parsed.walletName !== '-' && wallets) {
+        matchedWallet = wallets.find(w => w.name.toLowerCase() === parsed.walletName.toLowerCase() || parsed.walletName.toLowerCase().includes(w.name.toLowerCase()) || w.name.toLowerCase().includes(parsed.walletName.toLowerCase()));
+      }
+      
+      let catName = parsed.categoryName || '-';
+      let budName = parsed.budgetItemName || '-';
+      let dompetName = matchedWallet ? matchedWallet.name : '-';
+
+      // Validasi: Pastikan Budget Item benar-benar milik Kategori yang dipilih
+      if (budName !== '-' && catName !== '-' && budgetItems && categories) {
+        const matchedCat = categories.find(c => c.name.toLowerCase() === catName.toLowerCase());
+        const matchedBudget = budgetItems.find(b => 
+          b.name.toLowerCase() === budName.toLowerCase() || 
+          budName.toLowerCase().includes(b.name.toLowerCase())
+        );
+        
+        // Jika budget item ditemukan, tetapi category_id-nya TIDAK SAMA dengan kategori yang dipilih AI, 
+        // berarti AI halusinasi mencatut budget item dari kategori lain. Batalkan budget itemnya!
+        if (matchedCat && matchedBudget && matchedBudget.category_id && matchedBudget.category_id !== matchedCat.id) {
+          budName = '-';
+        }
+      }
+      
+      const msgText = `Menunggu Konfirmasi Transaksi:
+Nominal: Rp ${parsed.amount.toLocaleString('id-ID')}
+Tipe: ${parsed.type}
+Deskripsi: ${parsed.description || '-'}
+Catatan: ${parsed.notes || '-'}
+Kategori: ${catName}
+Budget Item: ${budName}
+Dompet: ${dompetName}
+Raw Amount: ${parsed.amount}`;
+
+      let buttons = [];
+      if (matchedWallet) {
+        buttons = [
+          [{ text: `✅ Konfirmasi & Simpan`, callback_data: `confirm_save` }],
+          [{ text: `✏️ Revisi (Edit AI)`, callback_data: `edit_tx` }, { text: `❌ Batal`, callback_data: `cancel_tx` }]
+        ];
+      } else {
+        buttons = [
+          [{ text: `💵 Cash`, callback_data: `sel_type|cash` }, { text: `🏦 Bank`, callback_data: `sel_type|bank` }, { text: `📱 E-Wallet`, callback_data: `sel_type|ewallet` }],
+          [{ text: `✏️ Revisi (Edit AI)`, callback_data: `edit_tx` }, { text: `❌ Batal`, callback_data: `cancel_tx` }]
+        ];
+      }
+
+      if (loadingMsgId) await this.deleteMessage(chatId, loadingMsgId);
+      await this.sendMessage(chatId, msgText, {
+        reply_markup: { inline_keyboard: buttons }
+      });
+
+    } catch (error: any) {
+      console.error('Telegram parse error:', error);
+      if (loadingMsgId) await this.deleteMessage(chatId, loadingMsgId);
+      await this.sendMessage(chatId, `Maaf, terjadi kesalahan:\n${error.message}`);
+    }
+  },
+
+  async processCallbackQuery(chatId: number, data: string, queryId: string, messageId: number, messageText: string) {
+    const userId = getUserIdFromChatId(chatId);
+    if (!userId) return;
+
+    // Acknowledge callback
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ callback_query_id: queryId })
+    });
+
+    const parts = data.split('|');
+
+    if (parts[0] === 'edit_tx') {
+      await this.deleteMessage(chatId, messageId);
+      await this.sendMessage(chatId, `MODE REVISI ✏️\n\n${messageText}\n\n⚠️ Balas (Reply) pesan ini dengan koreksi kamu! (Contoh: "Ganti kategori jadi Makanan" atau "Nominalnya 60rb")`, {
+        reply_markup: { force_reply: true, input_field_placeholder: 'Ketik revisi (wajib reply)...' }
+      });
+      return;
+    }
+
+    if (parts[0] === 'cancel_tx') {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: `❌ Transaksi dibatalkan.` })
+      });
+      return;
+    }
+
+    if (parts[0] === 'cmd_income') {
+      await this.sendMessage(chatId, `Silakan ketik nominal dan keterangan pemasukan Anda.\nContoh: "Gaji bulan ini 5000000 ke rekening BCA"`, {
+        reply_markup: { force_reply: true, input_field_placeholder: 'Ketik info pemasukan...' }
+      });
+      return;
+    }
+
+    if (parts[0] === 'cmd_expense') {
+      await this.sendMessage(chatId, `Silakan ketik atau fotokan struk pengeluaran Anda.\nContoh: "Makan siang 50rb" atau cukup kirim foto struknya.`, {
+        reply_markup: { force_reply: true, input_field_placeholder: 'Ketik info pengeluaran / kirim struk...' }
+      });
+      return;
+    }
+
+    if (parts[0] === 'cmd_report') {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+
+      const { data: txs } = await supabase.from('transactions').select('amount, type')
+        .gte('date', startOfMonth)
+        .lte('date', endOfMonth);
+          
+      let income = 0;
+      let expense = 0;
+      txs?.forEach(tx => {
+         if (tx.type === 'income') income += tx.amount;
+         else expense += tx.amount;
+      });
+      
+      const text = `📊 *Laporan Keuangan Bulan Ini*\n\n⬇️ Pemasukan: Rp ${income.toLocaleString('id-ID')}\n⬆️ Pengeluaran: Rp ${expense.toLocaleString('id-ID')}\n\n💰 *Sisa/Selisih:* Rp ${(income - expense).toLocaleString('id-ID')}`;
+      
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }) 
+      });
+      return;
+    }
+
+    if (parts[0] === 'sel_type') {
+      const wType = parts[1];
+      // Fetch WITHOUT user_id to see family wallets
+      const { data: wallets } = await supabase.from('wallets').select('*').eq('wallet_category', wType);
+      
+      let buttons = [];
+      if (wallets && wallets.length > 0) {
+        // Deduplicate wallets by name just in case
+        const uniqueWallets = Array.from(new Map(wallets.map(w => [w.name, w])).values());
+        buttons = uniqueWallets.map((w: any) => ([{ text: `💳 ${w.name}`, callback_data: `tx_wallet|${w.id}` }]));
+      } else {
+        buttons = [[{ text: `(Kosong)`, callback_data: `dummy` }]];
+      }
+      buttons.push([{ text: `🔙 Kembali`, callback_data: `back_type` }, { text: `❌ Batal`, callback_data: `cancel_tx` }]);
+
+      // Modify the text to replace the Dompet line or TIPE dompet instruction
+      const newText = messageText.includes('Silakan pilih TIPE') 
+        ? messageText.replace('Silakan pilih TIPE dompet di bawah ini:', `Silakan pilih Dompet (${wType.toUpperCase()}):`)
+        : messageText;
+
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: newText, reply_markup: { inline_keyboard: buttons } })
+      });
+    }
+
+    if (parts[0] === 'back_type') {
+      const buttons = [
+        [{ text: `💵 Cash`, callback_data: `sel_type|cash` }, { text: `🏦 Bank`, callback_data: `sel_type|bank` }, { text: `📱 E-Wallet`, callback_data: `sel_type|ewallet` }],
+        [{ text: `✏️ Revisi (Edit AI)`, callback_data: `edit_tx` }, { text: `❌ Batal`, callback_data: `cancel_tx` }]
+      ];
+      const newText = messageText.replace(/Silakan pilih Dompet \(.*\):/, 'Silakan pilih TIPE dompet di bawah ini:');
+      
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: newText, reply_markup: { inline_keyboard: buttons } })
+      });
+    }
+
+    if (parts[0] === 'tx_wallet') {
+      const walletId = parts[1];
+      const { data: walletData } = await supabase.from('wallets').select('name').eq('id', walletId).single();
+      const wName = walletData ? walletData.name : '-';
+
+      // Update the message text to show the selected wallet
+      const updatedText = messageText.replace(/Dompet: .*/, `Dompet: ${wName}`).replace(/Silakan pilih Dompet \(.*\):/, '');
+      
+      const buttons = [
+        [{ text: `✅ Konfirmasi & Simpan`, callback_data: `confirm_save` }],
+        [{ text: `✏️ Revisi (Edit AI)`, callback_data: `edit_tx` }, { text: `❌ Batal`, callback_data: `cancel_tx` }]
+      ];
+
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: updatedText.trim(), reply_markup: { inline_keyboard: buttons } })
+      });
+    }
+
+    if (parts[0] === 'confirm_save') {
+
+      // Parse values from messageText
+      const typeMatch = messageText.match(/Tipe: (.*)/);
+      const descMatch = messageText.match(/Deskripsi: (.*)/);
+      const notesMatch = messageText.match(/Catatan: (.*)/);
+      const catMatch = messageText.match(/Kategori: (.*)/);
+      const budMatch = messageText.match(/Budget Item: (.*)/);
+      const dompetMatch = messageText.match(/Dompet: (.*)/);
+      const rawAmtMatch = messageText.match(/Raw Amount: (.*)/);
+
+      const type = typeMatch ? typeMatch[1].trim() : 'expense';
+      const description = descMatch ? descMatch[1].trim() : 'Catatan dari Telegram';
+      const notes = notesMatch ? notesMatch[1].trim() : '';
+      const catName = catMatch ? catMatch[1].trim() : '-';
+      const budName = budMatch ? budMatch[1].trim() : '-';
+      const dompetName = dompetMatch ? dompetMatch[1].trim() : '-';
+      const amount = rawAmtMatch ? Number(rawAmtMatch[1].trim()) : 0;
+
+      // Look up IDs from Names
+      let categoryId = 'none';
+      let budgetItemId = 'none';
+      let walletId = '';
+      
+      if (catName !== '-') {
+        const { data: c } = await supabase.from('categories').select('id').ilike('name', catName).single();
+        if (c) categoryId = c.id;
+      }
+      if (budName !== '-') {
+        // Remove user_id filter to allow fetching spouse's budget items
+        const { data: b } = await supabase.from('budget_items').select('id').ilike('name', budName).single();
+        if (b) {
+          budgetItemId = b.id;
+        }
+      }
+      if (dompetName !== '-') {
+        const { data: w } = await supabase.from('wallets').select('id, name').ilike('name', dompetName).single();
+        if (w) walletId = w.id;
+      }
+
+      if (!walletId) {
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id: queryId, text: '⚠️ Harap pilih Dompet terlebih dahulu!', show_alert: true })
+        });
+        return;
+      }
+
+      const walletName = dompetName;
+
+      // Use a loading step for the final save so we can edit it directly to success
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: `⏳ Sedang menyimpan transaksi...` })
+      });
+
+      await this.saveTransaction(chatId, userId, amount, description, notes === '-' ? '' : notes, type, categoryId, budgetItemId, walletId, true);
+
+      // Edit the exact same message box into the final beautiful success message
+      const successText = `🎉 *Transaksi Berhasil Disimpan!* 🎉
+
+💸 *Nominal:* Rp ${amount.toLocaleString('id-ID')}
+📝 *Deskripsi:* ${description}
+📌 *Catatan:* ${notes === '-' ? 'Tidak ada' : notes}
+🏷️ *Kategori:* ${catName}
+🎯 *Budget:* ${budName}
+💳 *Dompet:* ${walletName}
+
+_Semangat mengatur keuangan!_ 💪`;
+
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId,
+          text: successText,
+          parse_mode: 'Markdown'
+        })
+      });
+    }
+  },
+
+  async saveTransaction(chatId: number, userId: string, amount: number, description: string, notes: string, type: string, categoryId: string, budgetItemId: string, walletId: string, skipSuccessMessage: boolean = false) {
+    try {
+      const payload = {
+        user_id: userId,
+        wallet_id: walletId,
+        category_id: categoryId === 'none' ? null : categoryId,
+        budget_item_id: budgetItemId === 'none' ? null : budgetItemId,
+        type: type as 'expense' | 'income',
+        amount: amount,
+        date: new Date().toISOString().split('T')[0],
+        description: description,
+        notes: notes,
+        installment_total_month: 1,
+        is_split: false
+      };
+
+      const { data, error } = await supabase.from('transactions').insert(payload).select().single();
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        await this.sendMessage(chatId, 'Gagal menyimpan transaksi ke database.');
+        return;
+      }
+
+      if (!skipSuccessMessage) {
+        await this.sendMessage(chatId, `✅ Berhasil! Transaksi Rp ${amount.toLocaleString('id-ID')} telah dicatat.`);
+      }
+    } catch (error) {
+      console.error('Save tx error:', error);
+      await this.sendMessage(chatId, 'Terjadi kesalahan sistem.');
+    }
+  },
+
+  async sendMessage(chatId: number, text: string, options: any = {}) {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: text,
+        ...options
+      })
+    });
+    return res.json();
+  },
+
+  async deleteMessage(chatId: number, messageId: number) {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId
+      })
+    });
+  }
+};
