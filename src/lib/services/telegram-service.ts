@@ -306,28 +306,160 @@ Raw Amount: ${parsed.amount}`;
     }
 
     if (parts[0] === 'cmd_report') {
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+      // Show loading message first since this will take time (DB + Gemini AI)
+      const loadRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text: '📊 Menyusun laporan keuangan dan menganalisa data dengan AI...' })
+      });
+      const loadMsg = await loadRes.json();
+      const loadMsgId = loadMsg?.result?.message_id;
 
-      const { data: txs } = await supabase.from('transactions').select('amount, type')
-        .gte('date', startOfMonth)
-        .lte('date', endOfMonth);
-          
+      const now = new Date();
+      // Format YYYY-MM
+      const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      const endOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      
+      const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      const currentMonthName = monthNames[now.getMonth()];
+      const prevMonthName = monthNames[startOfPrevMonth.getMonth()];
+      const currentYear = now.getFullYear();
+
+      // 1. Fetch Data
+      const { data: currentTxs } = await supabase.from('transactions').select('amount, type, category_id')
+        .gte('date', startOfMonth.toISOString())
+        .lte('date', endOfMonth.toISOString());
+        
+      const { data: prevTxs } = await supabase.from('transactions').select('amount, type')
+        .gte('date', startOfPrevMonth.toISOString())
+        .lte('date', endOfPrevMonth.toISOString());
+
+      const { data: budgets } = await supabase.from('budgets').select('amount').eq('period', currentPeriod);
+      const { data: categories } = await supabase.from('categories').select('id, name');
+
+      // 2. Calculations
       let income = 0;
       let expense = 0;
-      txs?.forEach(tx => {
-         if (tx.type === 'income') income += tx.amount;
-         else expense += tx.amount;
+      const categoryExpenses: Record<string, number> = {};
+
+      currentTxs?.forEach(tx => {
+        if (tx.type === 'income') {
+          income += tx.amount;
+        } else {
+          expense += tx.amount;
+          if (tx.category_id) {
+            categoryExpenses[tx.category_id] = (categoryExpenses[tx.category_id] || 0) + tx.amount;
+          }
+        }
       });
-      
-      const text = `📊 *Laporan Keuangan Bulan Ini*\n\n⬇️ Pemasukan: Rp ${income.toLocaleString('id-ID')}\n⬆️ Pengeluaran: Rp ${expense.toLocaleString('id-ID')}\n\n💰 *Sisa/Selisih:* Rp ${(income - expense).toLocaleString('id-ID')}`;
-      
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }) 
+      const net = income - expense;
+
+      let prevExpense = 0;
+      prevTxs?.forEach(tx => {
+        if (tx.type === 'expense') prevExpense += tx.amount;
       });
+
+      // 3. Daily Average
+      const currentDay = now.getDate();
+      const avgDaily = Math.round(expense / currentDay);
+
+      // 4. Top Spending
+      const topCatIds = Object.keys(categoryExpenses).sort((a, b) => categoryExpenses[b] - categoryExpenses[a]).slice(0, 3);
+      const topCategories = topCatIds.map((id, index) => {
+        const catName = categories?.find(c => c.id === id)?.name || 'Lainnya';
+        const medals = ['🥇', '🥈', '🥉'];
+        return `${medals[index]} ${catName} — Rp ${categoryExpenses[id].toLocaleString('id-ID')}`;
+      });
+
+      // 5. Budget Used
+      let totalBudget = 0;
+      budgets?.forEach(b => totalBudget += b.amount);
+      let budgetText = '';
+      if (totalBudget > 0) {
+        const budgetPct = Math.round((expense / totalBudget) * 100);
+        const sisaBudget = totalBudget - expense;
+        budgetText = `${budgetPct}% (sisa Rp ${sisaBudget.toLocaleString('id-ID')})`;
+      } else {
+        budgetText = 'Tidak ada budget diatur bulan ini.';
+      }
+
+      // 6. vs Previous Month
+      let vsText = '';
+      if (prevExpense === 0) {
+        vsText = 'Belum ada data pengeluaran bulan lalu.';
+      } else {
+        const diff = expense - prevExpense;
+        const pctChange = Math.round((Math.abs(diff) / prevExpense) * 100);
+        if (diff > 0) {
+          vsText = `Expense naik ${pctChange}%`;
+        } else if (diff < 0) {
+          vsText = `Expense turun ${pctChange}%`;
+        } else {
+          vsText = 'Expense sama dengan bulan lalu';
+        }
+      }
+
+      // 7. AI Insight
+      const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+      const prompt = \`Kamu adalah HanFin, asisten keuangan pintar dan ramah. Berikan insight pendek (maksimal 2-3 kalimat) tentang laporan keuangan bulan \${currentMonthName} ini.
+Gunakan data berikut:
+- Pemasukan: Rp \${income}
+- Pengeluaran: Rp \${expense} (Sisa Uang: Rp \${net})
+- Top 3 Pengeluaran: \${topCategories.join(', ')}
+- Budget terpakai: \${budgetText}
+- Dibanding bulan lalu: \${vsText}
+
+Saran harus memotivasi, jujur (kalau boros bilang boros, kalau bagus puji), gunakan 1-2 emoji. Jangan menggunakan format list, tulis seperti paragraf singkat saja.\`;
+
+      let insight = '';
+      try {
+        const result = await model.generateContent(prompt);
+        insight = result.response.text().trim();
+      } catch (e) {
+        insight = 'Terus semangat mengatur keuangan bulan ini ya!';
+      }
+
+      // 8. Build Final Output
+      const sign = net > 0 ? '+' : '';
+      const text = \`📊 *Ringkasan \${currentMonthName} \${currentYear}*
+
+💰 Income Rp \${income.toLocaleString('id-ID')}
+💸 Expense Rp \${expense.toLocaleString('id-ID')}
+💵 Net \${sign}Rp \${net.toLocaleString('id-ID')}
+
+📅 *Avg Daily Spend*
+Rp \${avgDaily.toLocaleString('id-ID')}/hari
+
+🏆 *Top Spending*
+\${topCategories.length > 0 ? topCategories.join('\\n') : 'Belum ada pengeluaran'}
+
+🎯 *Budget Used*
+\${budgetText}
+
+📈 *vs \${prevMonthName}*
+\${vsText}
+
+🤖 *HanFin Insight*
+_\${insight}_\`;
+
+      if (loadMsgId) {
+        await fetch(\`https://api.telegram.org/bot\${TELEGRAM_BOT_TOKEN}/editMessageText\`, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, message_id: loadMsgId, text, parse_mode: 'Markdown' }) 
+        });
+      } else {
+        await fetch(\`https://api.telegram.org/bot\${TELEGRAM_BOT_TOKEN}/sendMessage\`, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }) 
+        });
+      }
       return;
     }
 
