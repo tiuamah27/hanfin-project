@@ -339,7 +339,7 @@ Raw Amount: ${parsed.amount}`;
         .gte('date', startOfPrevMonth.toISOString())
         .lte('date', endOfPrevMonth.toISOString());
 
-      const { data: budgets } = await supabase.from('budgets').select('amount').eq('period', currentPeriod);
+      const { data: budgetItems } = await supabase.from('budget_items').select('amount');
       const { data: categories } = await supabase.from('categories').select('id, name');
 
       // 2. Calculations
@@ -378,14 +378,14 @@ Raw Amount: ${parsed.amount}`;
 
       // 5. Budget Used
       let totalBudget = 0;
-      budgets?.forEach(b => totalBudget += b.amount);
+      budgetItems?.forEach(b => totalBudget += b.amount);
       let budgetText = '';
       if (totalBudget > 0) {
         const budgetPct = Math.round((expense / totalBudget) * 100);
-        const sisaBudget = totalBudget - expense;
-        budgetText = `${budgetPct}% (sisa Rp ${sisaBudget.toLocaleString('id-ID')})`;
+        const sisaBudget = Math.max(0, totalBudget - expense);
+        budgetText = `${budgetPct > 100 ? '>100' : budgetPct}% (sisa Rp ${sisaBudget.toLocaleString('id-ID')})`;
       } else {
-        budgetText = 'Tidak ada budget diatur bulan ini.';
+        budgetText = expense > 0 ? '>100% (sisa Rp 0)' : 'Tidak ada budget diatur bulan ini.';
       }
 
       // 6. vs Previous Month
