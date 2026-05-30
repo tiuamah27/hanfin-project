@@ -40,22 +40,31 @@ export default function BudgetPage() {
   const { cat: spending, item: itemSpending } = useMemo(() => {
     const catMap: Record<string, number> = {};
     const itemMap: Record<string, number> = {};
+    let noCatTotal = 0;
     (txns || []).filter((t) => t.type === "expense").forEach((t) => {
-      if (t.category_id) catMap[t.category_id] = (catMap[t.category_id] || 0) + Number(t.amount);
+      if (t.category_id) {
+        catMap[t.category_id] = (catMap[t.category_id] || 0) + Number(t.amount);
+      } else {
+        noCatTotal += Number(t.amount);
+      }
       if (t.budget_item_id) itemMap[t.budget_item_id] = (itemMap[t.budget_item_id] || 0) + Number(t.amount);
     });
+    if (noCatTotal > 0) catMap['uncategorized'] = noCatTotal;
     return { cat: catMap, item: itemMap };
   }, [txns]);
 
 
   const groupedBudgets = useMemo(() => {
     const allItems = budgetItems || [];
-    if (allItems.length === 0) return [];
 
     // Build a lookup for budget groups
     const bgLookup: Record<string, { id: string; name: string; icon: string }> = {};
+    let otherExpensesGroupId = 'other-expenses-fallback';
     (budgetGroupsData || []).forEach(bg => {
       bgLookup[bg.id] = { id: bg.id, name: bg.name, icon: bg.icon };
+      if (bg.name.toLowerCase() === 'other expenses' || bg.name.toLowerCase() === 'pengeluaran lain') {
+         otherExpensesGroupId = bg.id;
+      }
     });
 
     // Build a lookup for categories
@@ -63,14 +72,21 @@ export default function BudgetPage() {
     (categories || []).forEach(c => {
       catLookup[c.id] = { name: c.name, icon: c.icon };
     });
+    catLookup['uncategorized'] = { name: 'Lainnya / Tanpa Kategori', icon: '❓' };
 
     // Group items: group_id -> category_id -> items[]
     const groupMap: Record<string, Record<string, any[]>> = {};
+    const budgetedCatIds = new Set<string>();
     
     // Initialize groupMap with all known groups so empty groups are still rendered
     (budgetGroupsData || []).forEach(bg => {
       groupMap[bg.id] = {};
     });
+
+    if (!groupMap[otherExpensesGroupId]) {
+      groupMap[otherExpensesGroupId] = {};
+      bgLookup[otherExpensesGroupId] = { id: otherExpensesGroupId, name: 'Other Expenses', icon: '📦' };
+    }
 
     allItems.forEach(bi => {
       const gid = bi.budget_group_id || 'ungrouped';
@@ -78,6 +94,16 @@ export default function BudgetPage() {
       if (!groupMap[gid]) groupMap[gid] = {};
       if (!groupMap[gid][cid]) groupMap[gid][cid] = [];
       groupMap[gid][cid].push(bi);
+      if (bi.category_id) budgetedCatIds.add(bi.category_id);
+    });
+
+    // Inject unbudgeted expenses into Other Expenses
+    Object.keys(spending).forEach(cid => {
+      if (cid && !budgetedCatIds.has(cid)) {
+         if (!groupMap[otherExpensesGroupId][cid]) {
+            groupMap[otherExpensesGroupId][cid] = [];
+         }
+      }
     });
 
     // Build the final structure
@@ -141,8 +167,9 @@ export default function BudgetPage() {
       return a.name.localeCompare(b.name);
     });
 
+    if (result.every(g => g.categories.length === 0)) return [];
     return result;
-  }, [budgetGroupsData, categories, budgetItems]);
+  }, [budgetGroupsData, categories, budgetItems, spending]);
 
   const { totalBudget, totalTerpakai } = useMemo(() => {
     let budget = 0;
