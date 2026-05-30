@@ -40,16 +40,16 @@ export default function BudgetPage() {
   const { cat: spending, item: itemSpending } = useMemo(() => {
     const catMap: Record<string, number> = {};
     const itemMap: Record<string, number> = {};
-    let noCatTotal = 0;
     (txns || []).filter((t) => t.type === "expense").forEach((t) => {
-      if (t.category_id) {
-        catMap[t.category_id] = (catMap[t.category_id] || 0) + Number(t.amount);
+      if (t.budget_item_id) {
+        if (t.category_id) catMap[t.category_id] = (catMap[t.category_id] || 0) + Number(t.amount);
+        itemMap[t.budget_item_id] = (itemMap[t.budget_item_id] || 0) + Number(t.amount);
       } else {
-        noCatTotal += Number(t.amount);
+        const vCid = t.category_id ? `unbudgeted-${t.category_id}` : 'uncategorized';
+        catMap[vCid] = (catMap[vCid] || 0) + Number(t.amount);
+        itemMap[t.id] = Number(t.amount);
       }
-      if (t.budget_item_id) itemMap[t.budget_item_id] = (itemMap[t.budget_item_id] || 0) + Number(t.amount);
     });
-    if (noCatTotal > 0) catMap['uncategorized'] = noCatTotal;
     return { cat: catMap, item: itemMap };
   }, [txns]);
 
@@ -71,12 +71,12 @@ export default function BudgetPage() {
     const catLookup: Record<string, { name: string; icon: string }> = {};
     (categories || []).forEach(c => {
       catLookup[c.id] = { name: c.name, icon: c.icon };
+      catLookup[`unbudgeted-${c.id}`] = { name: `${c.name} (Luar Budget)`, icon: c.icon };
     });
     catLookup['uncategorized'] = { name: 'Lainnya / Tanpa Kategori', icon: '❓' };
 
     // Group items: group_id -> category_id -> items[]
     const groupMap: Record<string, Record<string, any[]>> = {};
-    const budgetedCatIds = new Set<string>();
     
     // Initialize groupMap with all known groups so empty groups are still rendered
     (budgetGroupsData || []).forEach(bg => {
@@ -94,15 +94,33 @@ export default function BudgetPage() {
       if (!groupMap[gid]) groupMap[gid] = {};
       if (!groupMap[gid][cid]) groupMap[gid][cid] = [];
       groupMap[gid][cid].push(bi);
-      if (bi.category_id) budgetedCatIds.add(bi.category_id);
     });
 
     // Inject unbudgeted expenses into Other Expenses
-    Object.keys(spending).forEach(cid => {
-      if (cid && !budgetedCatIds.has(cid)) {
-         if (!groupMap[otherExpensesGroupId][cid]) {
-            groupMap[otherExpensesGroupId][cid] = [];
+    Object.keys(spending).forEach(key => {
+      if (key.startsWith('unbudgeted-') || key === 'uncategorized') {
+         if (!groupMap[otherExpensesGroupId][key]) {
+            groupMap[otherExpensesGroupId][key] = [];
          }
+         
+         let matchedTxns = [];
+         if (key === 'uncategorized') {
+            matchedTxns = (txns || []).filter(t => t.type === 'expense' && !t.budget_item_id && !t.category_id);
+         } else {
+            const originalCid = key.replace('unbudgeted-', '');
+            matchedTxns = (txns || []).filter(t => t.type === 'expense' && !t.budget_item_id && t.category_id === originalCid);
+         }
+         
+         matchedTxns.forEach(t => {
+            groupMap[otherExpensesGroupId][key].push({
+               id: t.id,
+               name: t.description || 'Transaksi tak bernama',
+               amount: 0,
+               priority: 'fleksibel',
+               budget_type: 'variable',
+               notes: t.notes || 'Transaksi tanpa budget item',
+            });
+         });
       }
     });
 
@@ -183,7 +201,7 @@ export default function BudgetPage() {
     return { totalBudget: budget, totalTerpakai: terpakai };
   }, [groupedBudgets, spending]);
 
-  const budgetTerpakaiPct = totalBudget > 0 ? (totalTerpakai / totalBudget) * 100 : 0;
+  const budgetTerpakaiPct = totalBudget > 0 ? (totalTerpakai / totalBudget) * 100 : (totalTerpakai > 0 ? 999 : 0);
   const sisaBudget = Math.max(0, totalBudget - totalTerpakai);
 
   return (
@@ -224,7 +242,7 @@ export default function BudgetPage() {
           {groupedBudgets.map((group) => {
             const groupTotalBudget = group.categories.reduce((sum, c) => sum + Number(c.amount || 0), 0);
             const groupTotalSpent = group.categories.reduce((sum, c) => sum + Number(spending[c.category_id || ""] || 0), 0);
-            const groupPct = groupTotalBudget > 0 ? Math.round((groupTotalSpent / groupTotalBudget) * 100) : 0;
+            const groupPct = groupTotalBudget > 0 ? Math.round((groupTotalSpent / groupTotalBudget) * 100) : (groupTotalSpent > 0 ? 999 : 0);
             const groupSisa = Math.max(0, groupTotalBudget - groupTotalSpent);
             const isCollapsed = collapsedGroups[group.id];
 
@@ -254,7 +272,7 @@ export default function BudgetPage() {
                       <circle cx="18" cy="18" r="14" fill="none" stroke="currentColor" className="text-card" strokeWidth="3" />
                       <circle cx="18" cy="18" r="14" fill="none" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${Math.min(groupPct, 100) * 0.88} 88`} className={cn(groupPct > 100 ? "text-red" : groupPct > 80 ? "text-amber" : "text-green")} stroke="currentColor" />
                     </svg>
-                    <span className={cn("absolute text-[9px] font-bold font-mono", groupPct > 100 ? "text-red" : groupPct > 80 ? "text-amber" : "text-green")}>{groupPct}%</span>
+                    <span className={cn("absolute text-[9px] font-bold font-mono", groupPct > 100 ? "text-red" : groupPct > 80 ? "text-amber" : "text-green")}>{groupPct === 999 ? ">100%" : `${groupPct}%`}</span>
                   </div>
                   {group.id !== 'ungrouped' && (
                     <button 
@@ -276,7 +294,7 @@ export default function BudgetPage() {
                   {group.categories.map((c) => {
                     const catId = c.category_id || "";
                     const actual = spending[catId] || 0;
-                    const pct = c.amount > 0 ? Math.round((actual / c.amount) * 100) : 0;
+                    const pct = c.amount > 0 ? Math.round((actual / c.amount) * 100) : (actual > 0 ? 999 : 0);
                     return (
                       <div key={c.budget_id} className="px-5 py-4">
                         {/* Category Row */}
@@ -289,7 +307,7 @@ export default function BudgetPage() {
                                 <span className="text-xs font-mono text-muted-foreground">
                                   {formatRupiahShort(actual)} / {formatRupiahShort(c.amount)}
                                 </span>
-                                <span className={cn("text-xs font-bold font-mono w-10 text-right", pct > 100 ? "text-red" : pct > 80 ? "text-amber" : "text-green")}>{pct}%</span>
+                                <span className={cn("text-xs font-bold font-mono w-10 text-right", pct > 100 ? "text-red" : pct > 80 ? "text-amber" : "text-green")}>{pct === 999 ? ">100%" : `${pct}%`}</span>
                               </div>
                             </div>
                             <div className="h-1.5 rounded-full bg-card overflow-hidden">
@@ -395,7 +413,7 @@ export default function BudgetPage() {
            <div className="mb-4">
              <div className="flex justify-between text-xs mb-2">
                <span className="text-muted-foreground">Budget Terpakai</span>
-               <span className={cn("font-mono font-bold", budgetTerpakaiPct > 100 ? "text-red" : budgetTerpakaiPct > 80 ? "text-amber" : "text-green")}>{budgetTerpakaiPct.toFixed(1)}%</span>
+               <span className={cn("font-mono font-bold", budgetTerpakaiPct > 100 ? "text-red" : budgetTerpakaiPct > 80 ? "text-amber" : "text-green")}>{budgetTerpakaiPct === 999 ? ">100%" : `${budgetTerpakaiPct.toFixed(1)}%`}</span>
              </div>
              <div className="h-1.5 rounded-full bg-card overflow-hidden">
                <div className={cn("h-full transition-all duration-1000", budgetTerpakaiPct > 100 ? "bg-red shadow-[0_0_10px_rgba(244,63,94,0.5)]" : budgetTerpakaiPct > 80 ? "bg-amber shadow-[0_0_10px_rgba(251,191,36,0.5)]" : "bg-green shadow-[0_0_10px_rgba(34,197,94,0.5)]")} style={{ width: `${Math.min(budgetTerpakaiPct, 100)}%` }} />
