@@ -39,22 +39,26 @@ export const telegramService = {
     const callbackQuery = body.callback_query;
 
     if (message && (message.text || message.photo)) {
-      await this.processMessage(message.chat.id, message);
+      await this.processMessage(message.chat.id, message.from?.id || message.chat.id, message);
     } else if (callbackQuery) {
       await this.processCallbackQuery(
         callbackQuery.message.chat.id, 
         callbackQuery.data, 
         callbackQuery.id, 
-        callbackQuery.message.message_id,
-        callbackQuery.message.text || ''
+        callbackQuery.message.message_id, 
+        callbackQuery.message.text || '',
+        callbackQuery.from?.id
       );
     }
   },
 
-  async processMessage(chatId: number, messageObj: any) {
-    const userId = getUserIdFromChatId(chatId);
+  async processMessage(chatId: number, senderId: number, messageObj: any) {
+    const userId = getUserIdFromChatId(senderId);
     
     if (!userId) {
+      // Jika di dalam grup, hindari spam pesan error untuk user yang tidak terdaftar
+      if (chatId < 0) return; 
+      
       await this.sendMessage(chatId, 'Maaf, akun Telegram Anda belum terdaftar di sistem HanFin.');
       return;
     }
@@ -251,11 +255,17 @@ Raw Amount: ${parsed.amount}`;
     }
   },
 
-  async processCallbackQuery(chatId: number, data: string, queryId: string, messageId: number, messageText: string) {
-    const userId = getUserIdFromChatId(chatId);
-    if (!userId) return;
-
-    // Acknowledge callback
+  async processCallbackQuery(chatId: number, data: string, queryId: string, messageId: number, messageText: string, senderId?: number) {
+    const userId = getUserIdFromChatId(senderId || chatId);
+    
+    if (!userId) {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callback_query_id: queryId, text: 'Maaf, Anda tidak memiliki akses.', show_alert: true })
+      });
+      return;
+    } // Acknowledge callback
     await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
