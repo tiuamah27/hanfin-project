@@ -406,15 +406,15 @@ Raw Amount: ${parsed.amount}`;
 
       // 7. AI Insight
       const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-      const prompt = \`Kamu adalah HanFin, asisten keuangan pintar dan ramah. Berikan insight pendek (maksimal 2-3 kalimat) tentang laporan keuangan bulan \${currentMonthName} ini.
+      const prompt = `Kamu adalah HanFin, asisten keuangan pintar dan ramah. Berikan insight pendek (maksimal 2-3 kalimat) tentang laporan keuangan bulan ${currentMonthName} ini.
 Gunakan data berikut:
-- Pemasukan: Rp \${income}
-- Pengeluaran: Rp \${expense} (Sisa Uang: Rp \${net})
-- Top 3 Pengeluaran: \${topCategories.join(', ')}
-- Budget terpakai: \${budgetText}
-- Dibanding bulan lalu: \${vsText}
+- Pemasukan: Rp ${income}
+- Pengeluaran: Rp ${expense} (Sisa Uang: Rp ${net})
+- Top 3 Pengeluaran: ${topCategories.join(', ')}
+- Budget terpakai: ${budgetText}
+- Dibanding bulan lalu: ${vsText}
 
-Saran harus memotivasi, jujur (kalau boros bilang boros, kalau bagus puji), gunakan 1-2 emoji. Jangan menggunakan format list, tulis seperti paragraf singkat saja.\`;
+Saran harus memotivasi, jujur (kalau boros bilang boros, kalau bagus puji), gunakan 1-2 emoji. Jangan menggunakan format list, tulis seperti paragraf singkat saja.`;
 
       let insight = '';
       try {
@@ -426,35 +426,35 @@ Saran harus memotivasi, jujur (kalau boros bilang boros, kalau bagus puji), guna
 
       // 8. Build Final Output
       const sign = net > 0 ? '+' : '';
-      const text = \`📊 *Ringkasan \${currentMonthName} \${currentYear}*
+      const text = `📊 *Ringkasan ${currentMonthName} ${currentYear}*
 
-💰 Income Rp \${income.toLocaleString('id-ID')}
-💸 Expense Rp \${expense.toLocaleString('id-ID')}
-💵 Net \${sign}Rp \${net.toLocaleString('id-ID')}
+💰 Income Rp ${income.toLocaleString('id-ID')}
+💸 Expense Rp ${expense.toLocaleString('id-ID')}
+💵 Net ${sign}Rp ${net.toLocaleString('id-ID')}
 
 📅 *Avg Daily Spend*
-Rp \${avgDaily.toLocaleString('id-ID')}/hari
+Rp ${avgDaily.toLocaleString('id-ID')}/hari
 
 🏆 *Top Spending*
-\${topCategories.length > 0 ? topCategories.join('\\n') : 'Belum ada pengeluaran'}
+${topCategories.length > 0 ? topCategories.join('\n') : 'Belum ada pengeluaran'}
 
 🎯 *Budget Used*
-\${budgetText}
+${budgetText}
 
-📈 *vs \${prevMonthName}*
-\${vsText}
+📈 *vs ${prevMonthName}*
+${vsText}
 
 🤖 *HanFin Insight*
-_\${insight}_\`;
+_${insight}_`;
 
       if (loadMsgId) {
-        await fetch(\`https://api.telegram.org/bot\${TELEGRAM_BOT_TOKEN}/editMessageText\`, { 
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, { 
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ chat_id: chatId, message_id: loadMsgId, text, parse_mode: 'Markdown' }) 
         });
       } else {
-        await fetch(\`https://api.telegram.org/bot\${TELEGRAM_BOT_TOKEN}/sendMessage\`, { 
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, { 
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }) 
