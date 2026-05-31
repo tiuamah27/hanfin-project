@@ -56,7 +56,7 @@ export function Sidebar() {
             alt="HanFin Logo" 
             width={36}
             height={36}
-            className="rounded-xl object-cover"
+            className="rounded-xl object-cover shrink-0 min-w-[36px] min-h-[36px]"
           />
           {!sidebarCollapsed && (
             <div>
@@ -128,10 +128,10 @@ export function Sidebar() {
             <div
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-card/50 border border-transparent",
-                sidebarCollapsed && "justify-center px-0 flex-col gap-2"
+                sidebarCollapsed && "justify-center px-0 flex-col-reverse gap-3"
               )}
             >
-              <div className="relative shrink-0">
+              <div className="relative shrink-0 min-w-[32px] min-h-[32px]">
                 {profile.avatar_url ? (
                   <Image 
                     src={profile.avatar_url} 

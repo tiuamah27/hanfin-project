@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useCategories, useTransactions, useBudgetGroups, useBudgetItems } from "@/hooks";
 import { useFilterStore } from "@/stores/filter-store";
 import { useUIStore } from "@/stores/ui-store";
@@ -18,10 +18,10 @@ export default function BudgetPage() {
   const { data: budgetItems, isLoading } = useBudgetItems();
   const today = todayISO();
 
-  // State to track collapsed budget groups
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  // State to track expanded budget groups (default is collapsed)
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const toggleGroup = (groupId: string) => {
-    setCollapsedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
+    setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
@@ -244,7 +244,7 @@ export default function BudgetPage() {
             const groupTotalSpent = group.categories.reduce((sum, c) => sum + Number(spending[c.category_id || ""] || 0), 0);
             const groupPct = groupTotalBudget > 0 ? Math.round((groupTotalSpent / groupTotalBudget) * 100) : (groupTotalSpent > 0 ? 999 : 0);
             const groupSisa = Math.max(0, groupTotalBudget - groupTotalSpent);
-            const isCollapsed = collapsedGroups[group.id];
+            const isCollapsed = !expandedGroups[group.id];
 
             return (
             <div key={group.id} className="glass-card border border-border/50 overflow-hidden transition-all duration-300">
@@ -289,8 +289,16 @@ export default function BudgetPage() {
               </div>
 
               {/* Categories List */}
-              {!isCollapsed && (
-                <div className="divide-y divide-border/20">
+              <AnimatePresence initial={false}>
+                {!isCollapsed && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="divide-y divide-border/20">
                   {group.categories.map((c) => {
                     const catId = c.category_id || "";
                     const actual = spending[catId] || 0;
@@ -359,8 +367,16 @@ export default function BudgetPage() {
                                     </button>
                                   </div>
                                   
-                                  {isExpanded && (
-                                    <div className="pl-7 pr-3 py-2.5 mb-2 bg-card/20 rounded-md border border-border/30 text-[11px] text-muted-foreground flex flex-row items-center justify-start gap-3 animate-in slide-in-from-top-2 fade-in">
+                                  <AnimatePresence initial={false}>
+                                    {isExpanded && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="pl-7 pr-3 py-2.5 mb-2 bg-card/20 rounded-md border border-border/30 text-[11px] text-muted-foreground flex flex-row items-center justify-start gap-3">
                                       <div className="flex gap-1.5 shrink-0">
                                         <span className="font-semibold text-foreground">Tipe:</span>
                                         <span className="uppercase">{bi.budget_type || "Variable"}</span>
@@ -374,8 +390,10 @@ export default function BudgetPage() {
                                           </div>
                                         </>
                                       )}
-                                    </div>
-                                  )}
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
                                 </div>
                               );
                             })}
@@ -384,8 +402,10 @@ export default function BudgetPage() {
                       </div>
                     );
                   })}
-                </div>
-              )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             );
           })}
