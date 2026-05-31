@@ -215,16 +215,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 
-  Global smooth transition for theme switching.
-  We exclude SVG toggle components and recharts so their specific transforms/animations aren't overridden.
-*/
-body *:not(.classic-toggle-path):not(.classic-toggle-circle):not(.classic-toggle-ray):not(.recharts-wrapper):not(.recharts-surface):not(.recharts-layer) {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 400ms;
-  transition-timing-function: ease-in-out;
-}
-
 /* ---- Scrollbar ---- */
 ::-webkit-scrollbar {
   width: 6px;

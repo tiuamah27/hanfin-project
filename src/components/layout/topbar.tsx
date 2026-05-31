@@ -116,7 +116,7 @@ export function Topbar() {
 
         {/* Theme Toggle */}
         <Classic
-          duration={500}
+          duration={300}
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           className="w-9 h-9 rounded-xl bg-card border border-border hover:border-primary/50 text-muted-foreground hover:text-foreground transition-all flex items-center justify-center [&>svg]:w-4 [&>svg]:h-4"
           title="Ganti Tema"

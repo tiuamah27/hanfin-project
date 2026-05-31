@@ -23,11 +23,11 @@ export function Classic({
     <>
       <style dangerouslySetInnerHTML={{ __html: `
         .classic-toggle-path {
-          transition-property: d, translate;
-          transition-duration: var(--toggles-dot-dev--duration);
+          transition-property: d, translate !important;
+          transition-duration: var(--toggles-dot-dev--duration) !important;
         }
         .dark .classic-toggle-path {
-          transition-delay: calc(var(--toggles-dot-dev--duration) * 0.15);
+          transition-delay: calc(var(--toggles-dot-dev--duration) * 0.15) !important;
           d: path('M0 2h13a1 1 0 0010 10v14H0Z');
         }
         @supports not (d: path('M0 0')) {
@@ -37,8 +37,8 @@ export function Classic({
         }
         .classic-toggle-circle {
           transform-origin: center;
-          transition-property: transform;
-          transition-duration: var(--toggles-dot-dev--duration);
+          transition-property: transform !important;
+          transition-duration: var(--toggles-dot-dev--duration) !important;
         }
         .dark .classic-toggle-circle {
           transform: scale(1.7);
@@ -46,11 +46,11 @@ export function Classic({
         .classic-toggle-ray {
           transform-box: view-box;
           transform-origin: center;
-          transition: transform var(--toggles-dot-dev--duration), opacity var(--toggles-dot-dev--duration);
-          transition-delay: calc(var(--toggles-dot-dev--duration) * 0.15);
+          transition: transform var(--toggles-dot-dev--duration), opacity var(--toggles-dot-dev--duration) !important;
+          transition-delay: calc(var(--toggles-dot-dev--duration) * 0.15) !important;
         }
         .dark .classic-toggle-ray {
-          transition-delay: 0s;
+          transition-delay: 0s !important;
           transform: scale(0);
           opacity: 0;
         }
