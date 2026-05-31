@@ -16,11 +16,31 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HanFin Project — Family Finance Dashboard",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  title: {
+    default: "HanFin Project — Family Finance Dashboard",
+    template: "%s | HanFin"
+  },
   description:
     "Premium family finance management dashboard. Track expenses, income, PayLater installments, budgets, goals, and more.",
   keywords: ["finance", "family", "dashboard", "budget", "paylater", "wallet"],
   authors: [{ name: "HanFin Project" }],
+  openGraph: {
+    title: "HanFin Project — Family Finance",
+    description: "Premium family finance management dashboard.",
+    url: "/",
+    siteName: "HanFin",
+    images: [
+      {
+        url: "https://slywtekcxvcakeqmabcx.supabase.co/storage/v1/object/public/logo/logo-hanfin.jpg",
+        width: 800,
+        height: 800,
+        alt: "HanFin Project Logo",
+      }
+    ],
+    locale: "id_ID",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

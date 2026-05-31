@@ -7,6 +7,7 @@
 // ============================================
 
 import { createClient } from '@/lib/supabase/client';
+import { TransactionSchema, UpdateTransactionSchema } from '@/lib/validations/schema';
 import type { Transaction, CreateTransactionDTO, UpdateTransactionDTO, TransactionFilters, Wallet } from '@/types';
 import { isPayLaterWallet } from '@/lib/paylater/billing-cycle';
 import { generatePayLaterInstallments } from '@/lib/paylater/installment-generator';
@@ -34,24 +35,21 @@ export const transactionService = {
     if (filters?.type && filters.type !== 'all' as string) q = q.eq('type', filters.type);
     if (filters?.categoryId) q = q.eq('category_id', filters.categoryId);
     if (filters?.walletId) q = q.eq('wallet_id', filters.walletId);
+    
+    // Server-side search filter
+    if (filters?.search) {
+      const s = filters.search;
+      // Search in description or notes
+      q = q.or(`description.ilike.%${s}%,notes.ilike.%${s}%`);
+    }
+
+    // Limit to prevent massive payloads, though monthly filtering naturally bounds it.
+    q = q.limit(500);
 
     const { data, error } = await q;
     if (error) throw error;
 
-    let results = (data || []) as Transaction[];
-
-    // Client-side search filter
-    if (filters?.search) {
-      const s = filters.search.toLowerCase();
-      results = results.filter(
-        (t) =>
-          t.description?.toLowerCase().includes(s) ||
-          t.notes?.toLowerCase().includes(s) ||
-          t.categories?.name?.toLowerCase().includes(s)
-      );
-    }
-
-    return results;
+    return (data || []) as Transaction[];
   },
 
   async getRecent(limit: number = 6): Promise<Transaction[]> {
@@ -76,9 +74,12 @@ export const transactionService = {
   },
 
   async create(payload: CreateTransactionDTO, userId: string): Promise<Transaction> {
+    // Validate with Zod
+    const validatedData = TransactionSchema.parse(payload);
+
     const { data, error } = await db()
       .from('transactions')
-      .insert({ ...payload, user_id: userId })
+      .insert({ ...validatedData, user_id: userId })
       .select()
       .single();
     if (error) throw error;
@@ -99,7 +100,9 @@ export const transactionService = {
   },
 
   async update(payload: UpdateTransactionDTO, oldTxn: Transaction): Promise<Transaction> {
-    const { id, ...rest } = payload;
+    // Validate with Zod
+    const validatedData = UpdateTransactionSchema.parse(payload);
+    const { id, ...rest } = validatedData;
 
     // Wallet balance adjustments are handled automatically by Supabase trigger
     const { data, error } = await db()
@@ -120,15 +123,5 @@ export const transactionService = {
     // Wallet balance reversal is handled automatically by Supabase trigger
   },
 
-  async getTodayTransactions(): Promise<Transaction[]> {
-    const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await db()
-      .from('transactions')
-      .select('*, categories(name, icon, color)')
-      .eq('date', today)
-      .order('created_at', { ascending: false })
-      .limit(30);
-    if (error) throw error;
-    return (data || []) as Transaction[];
-  },
+
 };

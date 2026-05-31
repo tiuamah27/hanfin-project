@@ -16,7 +16,11 @@ export async function generatePayLaterInstallments(
   const db = createClient();
   const provider = getPayLaterProvider(wallet);
   const totalAmount = Number(txn.amount);
-  const amountPerInstallment = Math.round(totalAmount / tenor);
+  // Use Math.floor to ensure base installments are predictable
+  // and the final installment absorbs all remaining cents
+  const amountPerInstallment = Math.floor(totalAmount / tenor);
+  // Last installment gets remainder to prevent rounding loss
+  // e.g., 100000 / 3 = 33333 * 2 + 33334 = 100000
   const groupId = txn.paylater_bill_group_id || `ig_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
   let firstBill = null;
@@ -28,52 +32,70 @@ export async function generatePayLaterInstallments(
     dueDate: firstCycle.dueDate,
   };
 
+  // Phase 1: Pre-calculate all installments and cycles
+  const installments = [];
+  const billingDates = [];
+  
   for (let i = 1; i <= tenor; i++) {
     const cycle = i === 1 ? firstCycle : getNextBillingCycle(baseCycle, i - 1, provider, wallet);
+    const installmentAmount = (i === tenor)
+      ? totalAmount - (amountPerInstallment * (tenor - 1))
+      : amountPerInstallment;
+      
+    installments.push({
+      i,
+      cycle,
+      installmentAmount,
+    });
+    billingDates.push(cycle.billingDate);
+  }
+
+  // Phase 2: Fetch all potentially existing bills at once
+  const { data: existingBills } = await db
+    .from('paylater_bills')
+    .select('*')
+    .eq('wallet_id', wallet.id)
+    .eq('provider', provider!)
+    .in('status', ['unpaid', 'partial'])
+    .in('billing_date', billingDates);
+
+  const existingMap = new Map((existingBills || []).map(b => [b.billing_date, b]));
+  
+  const billsToInsert: any[] = [];
+  const billsToUpdate: any[] = [];
+  const billItemPayloads: any[] = [];
+
+  // Phase 3: Segregate inserts and updates
+  for (const { i, cycle, installmentAmount } of installments) {
     const { billingDate, dueDate, periodStart, periodEnd } = cycle;
+    const existing = existingMap.get(billingDate);
 
-    const { data: existing } = await db
-      .from('paylater_bills')
-      .select('*')
-      .eq('wallet_id', wallet.id)
-      .eq('billing_date', billingDate)
-      .eq('provider', provider!)
-      .in('status', ['unpaid', 'partial'])
-      .limit(1);
-
-    let billId: string;
-
-    if (existing && existing.length > 0) {
-      const ext = existing[0];
-      const extTotal = Number(ext.total_amount || ext.amount || 0);
-      const newTotal = extTotal + amountPerInstallment;
-      const newPaid = Number(ext.paid_amount || 0);
+    if (existing) {
+      const extTotal = Number(existing.total_amount || existing.amount || 0);
+      const newTotal = extTotal + installmentAmount;
+      const newPaid = Number(existing.paid_amount || 0);
       const newRemaining = Math.max(0, newTotal - newPaid);
       const newStatus = newPaid >= newTotal ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
 
-      const { data: updated, error: updateErr } = await db
-        .from('paylater_bills')
-        .update({
+      billsToUpdate.push({
+        id: existing.id,
+        payload: {
           amount: newTotal,
           total_amount: newTotal,
           remaining_amount: newRemaining,
           status: newStatus,
-        })
-        .eq('id', ext.id)
-        .select()
-        .single();
-
-      if (updateErr) throw updateErr;
-      billId = ext.id;
-      if (i === 1) firstBill = updated;
+        },
+        i,
+        installmentAmount
+      });
     } else {
-      const billPayload = {
+      billsToInsert.push({
         user_id: userId,
         wallet_id: wallet.id,
         provider: provider!,
-        amount: amountPerInstallment,
-        total_amount: amountPerInstallment,
-        remaining_amount: amountPerInstallment,
+        amount: installmentAmount,
+        total_amount: installmentAmount,
+        remaining_amount: installmentAmount,
         billing_date: billingDate,
         due_date: dueDate,
         period_start: periodStart,
@@ -81,32 +103,70 @@ export async function generatePayLaterInstallments(
         status: 'unpaid' as const,
         paid_amount: 0,
         installment_group_id: groupId,
-      };
+        _i: i // Temp marker
+      });
+    }
+  }
 
-      const { data: created, error: createErr } = await db
+  // Phase 4: Execute updates (Promise.all)
+  if (billsToUpdate.length > 0) {
+    await Promise.all(billsToUpdate.map(async (bu) => {
+      const { data: updated, error: updateErr } = await db
         .from('paylater_bills')
-        .insert(billPayload)
+        .update(bu.payload)
+        .eq('id', bu.id)
         .select()
         .single();
+        
+      if (updateErr) throw updateErr;
+      if (bu.i === 1) firstBill = updated;
+      
+      billItemPayloads.push({
+        bill_id: bu.id,
+        transaction_id: txn.id,
+        installment_number: bu.i,
+        installment_total: tenor,
+        amount: bu.installmentAmount,
+      });
+    }));
+  }
 
-      if (createErr) throw createErr;
-      billId = created.id;
-      if (i === 1) firstBill = created;
-    }
-
-    const { error: itemErr } = await db.from('paylater_bill_items').insert({
-      bill_id: billId,
-      transaction_id: txn.id,
-      installment_number: i,
-      installment_total: tenor,
-      amount: amountPerInstallment,
+  // Phase 5: Execute inserts in bulk
+  if (billsToInsert.length > 0) {
+    const { data: createdBills, error: createErr } = await db
+      .from('paylater_bills')
+      .insert(billsToInsert.map(b => {
+        const { _i, ...rest } = b;
+        return rest;
+      }))
+      .select();
+      
+    if (createErr) throw createErr;
+    
+    // Map created bills back to their items
+    createdBills.forEach(created => {
+      const originalPayload = billsToInsert.find(b => b.billing_date === created.billing_date);
+      if (!originalPayload) return;
+      
+      if (originalPayload._i === 1) firstBill = created;
+      
+      billItemPayloads.push({
+        bill_id: created.id,
+        transaction_id: txn.id,
+        installment_number: originalPayload._i,
+        installment_total: tenor,
+        amount: originalPayload.amount,
+      });
     });
+  }
+
+  // Phase 6: Bulk insert all bill items
+  if (billItemPayloads.length > 0) {
+    const { error: itemErr } = await db.from('paylater_bill_items').insert(billItemPayloads);
     if (itemErr) throw itemErr;
   }
 
   return firstBill;
 }
 
-export async function generatePayLaterBill(txn: Transaction, wallet: Wallet, userId: string) {
-  return generatePayLaterInstallments(txn, 1, wallet, userId);
-}
+

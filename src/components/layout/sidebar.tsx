@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui-store";
@@ -16,15 +17,10 @@ import {
   PieChart,
   BarChart3,
   Calendar,
-  Settings,
-  ChevronLeft,
   LogOut,
   X,
   PanelLeftClose,
   PanelLeftOpen,
-  User,
-  Key,
-  ChevronUp
 } from "lucide-react";
 
 const navItems = [
@@ -55,10 +51,12 @@ export function Sidebar() {
       {/* Logo */}
       <div className="px-5 py-6 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3" onClick={() => setSidebarOpen(false)}>
-          <img 
+          <Image 
             src="https://slywtekcxvcakeqmabcx.supabase.co/storage/v1/object/public/logo/logo-hanfin.jpg" 
             alt="HanFin Logo" 
-            className="w-9 h-9 rounded-xl object-cover"
+            width={36}
+            height={36}
+            className="rounded-xl object-cover"
           />
           {!sidebarCollapsed && (
             <div>
@@ -135,10 +133,12 @@ export function Sidebar() {
             >
               <div className="relative shrink-0">
                 {profile.avatar_url ? (
-                  <img 
+                  <Image 
                     src={profile.avatar_url} 
                     alt={profile.name} 
-                    className="w-8 h-8 rounded-full object-cover border border-border/50"
+                    width={32}
+                    height={32}
+                    className="rounded-full object-cover border border-border/50"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                       (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');

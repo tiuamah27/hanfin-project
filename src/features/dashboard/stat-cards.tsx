@@ -6,8 +6,7 @@ import { transactionService } from "@/lib/services/transaction-service";
 import { formatRupiahShort, getMonthRange, percentChange } from "@/lib/utils/formatters";
 import { TrendingUp, TrendingDown, Wallet, ArrowDownLeft, ArrowUpRight, PiggyBank } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const TRANSFER_CATS = ["Transfer", "Transfer Keluar", "Transfer Masuk"];
+import { TRANSFER_CATS } from "@/lib/constants";
 
 export function StatCards() {
   const { data: wallets } = useWallets();

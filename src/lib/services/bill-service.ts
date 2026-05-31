@@ -61,8 +61,7 @@ export const billService = {
       const currentDue = new Date(bill.due_date);
       const nextDue = new Date(currentDue);
       
-      const rMatch = bill.notes?.match(/^\[R:(weekly|monthly|yearly)\]/);
-      const rType = rMatch ? rMatch[1] : 'monthly';
+      const rType = bill.recurrence_type || 'monthly';
       if (rType === 'daily') {
         nextDue.setDate(nextDue.getDate() + 1);
       } else if (rType === 'weekly') {
@@ -79,8 +78,10 @@ export const billService = {
         amount: bill.amount,
         due_date: nextDue.toISOString().split('T')[0],
         is_recurring: true,
+        recurrence_type: bill.recurrence_type,
         category_id: bill.category_id,
         wallet_id: bill.wallet_id,
+        budget_item_id: bill.budget_item_id,
         notes: bill.notes,
         status: 'unpaid'
       });
@@ -88,10 +89,7 @@ export const billService = {
     }
   },
 
-  async delete(id: string): Promise<void> {
-    const { error } = await db().from('bills').delete().eq('id', id);
-    if (error) throw error;
-  },
+
 
   // PayLater bills
   async getPayLaterBills(options: { statusFilter?: string; limit?: number } = {}): Promise<PayLaterBill[]> {

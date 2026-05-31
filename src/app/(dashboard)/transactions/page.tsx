@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useTransactions, useCategories, useWallets, useAuth, useCreateTransaction, useDeleteTransaction } from "@/hooks";
+import { useTransactions, useCategories, useWallets, useAuth, useDeleteTransaction } from "@/hooks";
 import { useFilterStore } from "@/stores/filter-store";
 import { formatRupiahShort, formatDateShort, formatRupiah, formatDate, getMonthString } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils";
@@ -11,8 +11,7 @@ import { toast } from "@/components/ui/toaster";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { useUIStore } from "@/stores/ui-store";
 import type { Transaction } from "@/types";
-
-const TRANSFER_CATS = ["Transfer", "Transfer Keluar", "Transfer Masuk"];
+import { TRANSFER_CATS } from "@/lib/constants";
 
 function TransactionRow({ t, onEdit, onDelete }: { t: Transaction; onEdit: () => void; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false);
@@ -165,7 +164,7 @@ export default function TransactionsPage() {
   const { data: wallets } = useWallets();
   const { user } = useAuth();
   const deleteTxn = useDeleteTransaction();
-  const [showForm, setShowForm] = useState(false);
+
   const [txnToDelete, setTxnToDelete] = useState<Transaction | null>(null);
 
   const summary = useMemo(() => {

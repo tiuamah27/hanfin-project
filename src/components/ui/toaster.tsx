@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { X, CheckCircle2, AlertCircle, AlertTriangle, Info } from "lucide-react";
+import { useNotificationStore } from "@/stores/notification-store";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
@@ -51,7 +52,7 @@ export function Toaster() {
       
       // Also push to notification history if it's not a generic error
       if (type !== 'error') {
-        const { addNotification } = require('@/stores/notification-store').useNotificationStore.getState();
+        const { addNotification } = useNotificationStore.getState();
         let notifType: "system" | "transaction" | "wallet" | "bill" | "goal" | "budget" = "system";
         if (message.toLowerCase().includes('transaksi')) notifType = "transaction";
         else if (message.toLowerCase().includes('wallet') || message.toLowerCase().includes('transfer')) notifType = "wallet";

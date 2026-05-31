@@ -8,6 +8,7 @@ import { formatRupiahShort } from "@/lib/utils/formatters";
 import { Menu, Search, Bell, Wallet, Trash2, CheckCheck, MoreHorizontal } from "lucide-react";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { toast } from "@/components/ui/toaster";
+import Image from "next/image";
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,7 +22,6 @@ const pageTitles: Record<string, string> = {
   "/budget": "Budget",
   "/reports": "Laporan",
   "/calendar": "Kalender",
-  "/settings": "Pengaturan",
 };
 
 import { useNotificationStore } from "@/stores/notification-store";
@@ -243,7 +243,7 @@ export function Topbar() {
                               >
                                 <div className="w-10 h-10 rounded-full bg-surface overflow-hidden shrink-0 border border-border/50">
                                   {n.avatar ? (
-                                    <img src={n.avatar} alt="avatar" className="w-full h-full object-cover" />
+                                    <Image src={n.avatar} alt="avatar" width={40} height={40} className="object-cover" />
                                   ) : (
                                     <div className="w-full h-full bg-gradient-to-br from-primary/30 to-purple/30 flex items-center justify-center">
                                       <Bell className="w-4 h-4 text-primary" />
@@ -277,7 +277,7 @@ export function Topbar() {
                               <div key={n.id} className="relative flex items-center gap-3 px-4 py-3 hover:bg-surface transition-colors text-left w-full">
                                 <div className="w-10 h-10 rounded-full bg-surface overflow-hidden shrink-0 border border-border/50">
                                   {n.avatar ? (
-                                    <img src={n.avatar} alt="avatar" className="w-full h-full object-cover" />
+                                    <Image src={n.avatar} alt="avatar" width={40} height={40} className="object-cover" />
                                   ) : (
                                     <div className="w-full h-full bg-gradient-to-br from-primary/10 to-purple/10 flex items-center justify-center">
                                       <Bell className="w-4 h-4 text-muted-foreground" />
@@ -314,10 +314,12 @@ export function Topbar() {
         >
           {profile?.avatar_url ? (
             <>
-              <img 
+              <Image 
                 src={profile.avatar_url} 
                 alt={profile?.name || "User"} 
-                className="w-full h-full object-cover"
+                width={32}
+                height={32}
+                className="object-cover"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                   (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');

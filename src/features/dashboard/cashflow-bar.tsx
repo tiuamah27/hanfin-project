@@ -4,8 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { transactionService } from "@/lib/services/transaction-service";
 import { getMonthRange, formatRupiahShort } from "@/lib/utils/formatters";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-
-const TRANSFER_CATS = ["Transfer", "Transfer Keluar", "Transfer Masuk"];
+import { TRANSFER_CATS } from "@/lib/constants";
 
 export function CashflowBar() {
   const { data, isLoading } = useQuery({

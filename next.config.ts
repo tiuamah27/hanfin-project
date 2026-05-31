@@ -3,7 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      new URL('https://slywtekcxvcakeqmabcx.supabase.co/**'),
+      {
+        protocol: 'https',
+        hostname: 'slywtekcxvcakeqmabcx.supabase.co',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };

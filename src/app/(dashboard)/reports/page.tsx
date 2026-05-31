@@ -10,10 +10,14 @@ import { TrendingUp, TrendingDown, Calculator, Flame, FileText, FileSpreadsheet 
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { TRANSFER_CATS } from "@/lib/constants";
+import Image from "next/image";
 
 const db = () => createClient();
 
-const TRANSFER_CATS = ["Transfer", "Transfer Keluar", "Transfer Masuk"];
+// Fallback names if not configured via environment variables
+const HUSBAND_NAME = process.env.NEXT_PUBLIC_HUSBAND_NAME || "Tiu";
+const WIFE_NAME = process.env.NEXT_PUBLIC_WIFE_NAME || "Rose";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 12 },
@@ -32,7 +36,7 @@ function UserAvatar({ src, name, size = 44 }: { src?: string | null; name: strin
 
   if (src && !failed) {
     return (
-      <img
+      <Image
         src={src}
         alt={name}
         width={size}
@@ -73,12 +77,14 @@ export default function ReportsPage() {
       const jagoTxnsSafe = allJagoTxns || [];
 
       const currentMonthUsers: Record<string, { income: number; expense: number; name: string; role: string; avatar_url: string | null }> = {
-        "Tiu": { name: "Tiu", income: 0, expense: 0, role: "SUAMI", avatar_url: null },
-        "Rose": { name: "Rose", income: 0, expense: 0, role: "ISTRI", avatar_url: null }
+        [HUSBAND_NAME]: { name: HUSBAND_NAME, income: 0, expense: 0, role: "SUAMI", avatar_url: null },
+        [WIFE_NAME]: { name: WIFE_NAME, income: 0, expense: 0, role: "ISTRI", avatar_url: null }
       };
 
       const iterations = timeframe === "Kuartal" ? 4 : timeframe === "Tahunan" ? 3 : 6;
 
+      // Prepare periods
+      const periods = [];
       for (let i = iterations - 1; i >= 0; i--) {
         let start, end, label;
         const d = new Date();
@@ -101,8 +107,19 @@ export default function ReportsPage() {
           d.setMonth(d.getMonth() - i);
           label = new Intl.DateTimeFormat("id-ID", { month: "short" }).format(d);
         }
+        periods.push({ start, end, label, i });
+      }
 
-        const txns = await transactionService.getByDateRange(start, end);
+      // Fetch all periods concurrently
+      const fetchedPeriods = await Promise.all(
+        periods.map(async (p) => {
+          const txns = await transactionService.getByDateRange(p.start, p.end);
+          return { ...p, txns };
+        })
+      );
+
+      // Process results
+      for (const { start, end, label, i, txns } of fetchedPeriods) {
         
         // Income & Expense calculation (ignoring transfers)
         const incomeTxns = txns.filter((t) => t.type === "income" && !TRANSFER_CATS.includes(t.categories?.name || ""));
@@ -135,20 +152,22 @@ export default function ReportsPage() {
         if (i === 0) {
           txns.forEach(t => {
             if (TRANSFER_CATS.includes(t.categories?.name || "")) return;
-            const userName = t.profiles?.name || "Tiu";
+            const userName = t.profiles?.name || HUSBAND_NAME;
             const avatarUrl = t.profiles?.avatar_url || null;
-            const isRose = userName.toLowerCase().includes('rose');
-            const targetKey = isRose ? "Rose" : "Tiu";
+            const isRose = userName.toLowerCase().includes(WIFE_NAME.toLowerCase());
+            const targetKey = isRose ? WIFE_NAME : HUSBAND_NAME;
             
             if (avatarUrl && !currentMonthUsers[targetKey].avatar_url) {
               currentMonthUsers[targetKey].avatar_url = avatarUrl;
             }
-            if (t.type === 'income') currentMonthUsers[targetKey].income += Number(t.amount);
-            if (t.type === 'expense') {
+
+            if (t.type === "income") {
+              currentMonthUsers[targetKey].income += Number(t.amount);
+            } else if (t.type === "expense") {
               if (t.is_split) {
                 const payerPct = t.split_percentage_payer ?? 50;
                 const otherPct = t.split_percentage_other ?? 50;
-                const otherKey = isRose ? "Tiu" : "Rose";
+                const otherKey = isRose ? HUSBAND_NAME : WIFE_NAME;
                 
                 currentMonthUsers[targetKey].expense += Number(t.amount) * (payerPct / 100);
                 currentMonthUsers[otherKey].expense += Number(t.amount) * (otherPct / 100);
@@ -163,8 +182,8 @@ export default function ReportsPage() {
       const { data: profiles } = await db().from('profiles').select('*');
       if (profiles) {
         profiles.forEach(p => {
-          const isRose = p.name.toLowerCase().includes('rose');
-          const targetKey = isRose ? "Rose" : "Tiu";
+          const isRose = p.name.toLowerCase().includes(WIFE_NAME.toLowerCase());
+          const targetKey = isRose ? WIFE_NAME : HUSBAND_NAME;
           if (p.avatar_url) {
             currentMonthUsers[targetKey].avatar_url = p.avatar_url;
           }
@@ -181,8 +200,8 @@ export default function ReportsPage() {
   const rawUsers = data?.users || [];
   
   const familyUsers = [
-    rawUsers.find(u => u.name === 'Tiu') || { name: "Tiu", income: 0, expense: 0, role: "SUAMI", avatar_url: null },
-    rawUsers.find(u => u.name === 'Rose') || { name: "Rose", income: 0, expense: 0, role: "ISTRI", avatar_url: null }
+    rawUsers.find(u => u.name === HUSBAND_NAME) || { name: HUSBAND_NAME, income: 0, expense: 0, role: "SUAMI", avatar_url: null },
+    rawUsers.find(u => u.name === WIFE_NAME) || { name: WIFE_NAME, income: 0, expense: 0, role: "ISTRI", avatar_url: null }
   ];
 
   const current = chartData[chartData.length - 1];

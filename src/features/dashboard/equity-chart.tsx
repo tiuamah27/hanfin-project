@@ -6,8 +6,7 @@ import { transactionService } from "@/lib/services/transaction-service";
 import { getMonthRange, formatRupiahShort } from "@/lib/utils/formatters";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Eye, EyeOff } from "lucide-react";
-
-const TRANSFER_CATS = ["Transfer", "Transfer Keluar", "Transfer Masuk"];
+import { TRANSFER_CATS } from "@/lib/constants";
 
 export function EquityChart() {
   const [timeframe, setTimeframe] = useState<"Bulanan" | "Kuartal" | "Tahunan">("Bulanan");
@@ -26,6 +25,8 @@ export function EquityChart() {
       const points: { label: string; income: number; expense: number; savings: number }[] = [];
       const iterations = timeframe === "Kuartal" ? 4 : timeframe === "Tahunan" ? 3 : 6;
 
+      // Prepare periods
+      const periods = [];
       for (let i = iterations - 1; i >= 0; i--) {
         let start, end, label;
         const d = new Date();
@@ -48,9 +49,18 @@ export function EquityChart() {
           d.setMonth(d.getMonth() - i);
           label = new Intl.DateTimeFormat("id-ID", { month: "short" }).format(d);
         }
+        periods.push({ start, end, label });
+      }
 
-        const txns = await transactionService.getByDateRange(start, end);
-        
+      // Fetch all periods concurrently
+      const fetchedPeriods = await Promise.all(
+        periods.map(async (p) => {
+          const txns = await transactionService.getByDateRange(p.start, p.end);
+          return { ...p, txns };
+        })
+      );
+
+      for (const { label, txns } of fetchedPeriods) {
         const incomeTxns = txns.filter((t) => t.type === "income" && !TRANSFER_CATS.includes(t.categories?.name || ""));
         const expenseTxns = txns.filter((t) => t.type === "expense" && !TRANSFER_CATS.includes(t.categories?.name || ""));
         

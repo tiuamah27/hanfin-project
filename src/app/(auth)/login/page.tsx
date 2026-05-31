@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -57,12 +58,14 @@ export default function LoginPage() {
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-            className="mb-4"
+            className="mb-4 flex justify-center"
           >
-            <img 
+            <Image 
               src="https://slywtekcxvcakeqmabcx.supabase.co/storage/v1/object/public/logo/logo-hanfin.jpg" 
               alt="HanFin Logo" 
-              className="w-20 h-20 mx-auto rounded-2xl object-cover shadow-lg shadow-primary/20"
+              width={80}
+              height={80}
+              className="rounded-2xl object-cover shadow-lg shadow-primary/20"
             />
           </motion.div>
           <h1 className="text-2xl font-bold text-foreground">HanFin Project</h1>

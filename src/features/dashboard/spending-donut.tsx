@@ -5,9 +5,9 @@ import { transactionService } from "@/lib/services/transaction-service";
 import { getMonthRange, formatRupiahShort } from "@/lib/utils/formatters";
 import { RadialBarChart, RadialBar, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
+import { TRANSFER_CATS } from "@/lib/constants";
 
 const COLORS = ["#38bdf8", "#a78bfa", "#fbbf24", "#34d399", "#f87171", "#fb7185"];
-const TRANSFER_CATS = ["Transfer", "Transfer Keluar", "Transfer Masuk"];
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {

@@ -35,16 +35,12 @@ export const walletService = {
     return (data || []) as Wallet[];
   },
 
-  async getById(id: string): Promise<Wallet> {
-    const { data, error } = await db().from('wallets').select('*').eq('id', id).single();
-    if (error) throw error;
-    return data as Wallet;
-  },
+
 
   async create(payload: CreateWalletDTO, userId: string): Promise<Wallet> {
     const { data, error } = await db()
       .from('wallets')
-      .insert({ ...payload, user_id: userId, is_active: true, type: payload.wallet_category })
+      .insert({ ...payload, user_id: userId, is_active: true })
       .select()
       .single();
     if (error) throw error;

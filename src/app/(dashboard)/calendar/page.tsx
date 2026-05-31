@@ -8,9 +8,9 @@ import { formatRupiahShort, formatRupiah } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, LayoutList, Calendar as CalendarIcon, ArrowUpRight, ArrowDownRight, ArrowRightLeft } from "lucide-react";
 import { useState, useMemo } from "react";
+import { TRANSFER_CATS } from "@/lib/constants";
 
 const DAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
-const TRANSFER_CATS = ["Transfer", "Transfer Keluar", "Transfer Masuk"];
 
 export default function CalendarPage() {
   const { calendarMonth, setCalendarMonth } = useFilterStore();

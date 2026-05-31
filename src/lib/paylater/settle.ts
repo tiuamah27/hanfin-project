@@ -7,32 +7,6 @@ import { createClient } from '@/lib/supabase/client';
 import { getProviderInfo } from './billing-cycle';
 import { formatDateShort, todayISO } from '@/lib/utils/formatters';
 
-async function updateWalletBalance(walletId: string, delta: number) {
-  if (!walletId || delta === 0) return;
-  const db = createClient();
-  const { data: w, error: fetchErr } = await db
-    .from('wallets')
-    .select('type, wallet_category, balance, used_limit')
-    .eq('id', walletId)
-    .single();
-
-  if (fetchErr) throw fetchErr;
-  if (!w) return;
-
-  const isPL = w.wallet_category === 'liability' || w.type === 'liability';
-  if (isPL) {
-    const newUsed = Math.max(0, Number(w.used_limit || 0) - delta);
-    const { error } = await db.from('wallets').update({ used_limit: newUsed }).eq('id', walletId);
-    if (error) throw error;
-  } else {
-    const newBalance = Number(w.balance || 0) + delta;
-    const { error } = await db
-      .from('wallets')
-      .update({ balance: newBalance })
-      .eq('id', walletId);
-    if (error) throw error;
-  }
-}
 
 async function updateUsedLimit(walletId: string, deltaAmount: number) {
   const db = createClient();

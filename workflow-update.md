@@ -13,7 +13,7 @@ git push
 ## Di Server CasaOS
 
 ```bash
-cd ~/hanfin-project
+cd /opt/apps/hanfin
 git pull
 docker compose up -d --build
 ```

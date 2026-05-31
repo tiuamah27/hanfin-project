@@ -9,11 +9,7 @@ const db = () => createClient();
 
 // ---- Goal Service ----
 export const goalService = {
-  async getAll(): Promise<Goal[]> {
-    const { data, error } = await db().from('goals').select('*').order('deadline');
-    if (error) throw error;
-    return (data || []) as Goal[];
-  },
+
 
   async getActive(): Promise<Goal[]> {
     const { data, error } = await db()
@@ -53,10 +49,7 @@ export const goalService = {
     // when the associated transaction is created
   },
 
-  async delete(id: string): Promise<void> {
-    const { error } = await db().from('goals').delete().eq('id', id);
-    if (error) throw error;
-  },
+
 };
 
 // ---- Budget Service ----
@@ -152,11 +145,7 @@ export const budgetItemService = {
     return (data || []) as BudgetItem[];
   },
 
-  async getByCategory(categoryId: string): Promise<BudgetItem[]> {
-    const { data, error } = await db().from('budget_items').select('*').eq('category_id', categoryId).order('name');
-    if (error) throw error;
-    return (data || []) as BudgetItem[];
-  },
+
 
   async create(payload: Partial<BudgetItem>, userId: string): Promise<BudgetItem> {
     const { data, error } = await db()

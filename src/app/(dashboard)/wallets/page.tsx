@@ -10,7 +10,7 @@ import { Plus, Repeat, Trash2, Edit2 } from "lucide-react";
 import type { WalletCategory } from "@/types";
 import { toast } from "@/components/ui/toaster";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useUIStore } from "@/stores/ui-store";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
@@ -96,6 +96,16 @@ export default function WalletsPage() {
   const currentDay = today.getDate();
   const avgMonthlySpending = expense / currentDay * daysInMonth;
   const savingsRate = income > 0 ? (Math.max(0, cashflow) / income) * 100 : 0;
+
+  // Memoize sparklines so it doesn't run O(W * T) on every render
+  const sparklineData = useMemo(() => {
+    const data: Record<string, any[]> = {};
+    if (!wallets || !txns) return data;
+    wallets.forEach(w => {
+      data[w.id] = generateWalletSparkline(w, txns, daysInMonth);
+    });
+    return data;
+  }, [wallets, txns, daysInMonth]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -224,7 +234,7 @@ export default function WalletsPage() {
                           {/* Sparkline Chart */}
                           <div className="absolute inset-x-0 bottom-0 h-16 opacity-30 pointer-events-none">
                             <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                              <AreaChart data={generateWalletSparkline(w, txns || [], daysInMonth)}>
+                              <AreaChart data={sparklineData[w.id] || [{ value: 0 }, { value: 0 }]}>
                                 <defs>
                                   <linearGradient id={`spark-${w.id}`} x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor={isLiability ? "#ef4444" : "#6366f1"} stopOpacity={0.8} />
@@ -330,7 +340,7 @@ export default function WalletsPage() {
                           {/* Sparkline Chart */}
                           <div className="absolute inset-x-0 bottom-0 h-16 opacity-30 pointer-events-none">
                             <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                              <AreaChart data={generateWalletSparkline(w, txns || [], daysInMonth)}>
+                              <AreaChart data={sparklineData[w.id] || [{ value: 0 }, { value: 0 }]}>
                                 <defs>
                                   <linearGradient id={`spark-${w.id}`} x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor={isLiability ? "#ef4444" : "#6366f1"} stopOpacity={0.8} />
