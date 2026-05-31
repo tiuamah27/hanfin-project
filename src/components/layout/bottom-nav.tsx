@@ -17,8 +17,8 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-sm z-40 bg-[#0B0F19]/90 backdrop-blur-xl border border-border/50 rounded-full shadow-2xl py-3 px-6">
-      <div className="flex items-center justify-between h-full">
+    <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-sm z-40 bg-background/90 backdrop-blur-xl border border-border/50 rounded-full shadow-2xl py-3 px-6 transition-colors duration-300">
+      <ul className="flex items-center justify-between relative">
         {items.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (

@@ -94,14 +94,14 @@ export function EquityChart() {
         </div>
 
         {/* Timeframe Controls */}
-        <div className="flex w-full sm:w-auto bg-slate-950/40 p-0.5 rounded-lg border border-slate-800/40">
+        <div className="flex w-full sm:w-auto bg-surface p-0.5 rounded-lg border border-border/50">
           {(["Bulanan", "Kuartal", "Tahunan"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTimeframe(t)}
               className={`flex-1 sm:flex-none px-2 py-1.5 sm:px-3 sm:py-1 text-[10px] sm:text-xs text-center font-medium rounded-md transition-all duration-200 ${
                 timeframe === t
-                  ? "bg-slate-800 text-foreground shadow-sm"
+                  ? "bg-card text-foreground shadow-sm border border-border/50"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -118,8 +118,8 @@ export function EquityChart() {
           onClick={() => setShowIncome(!showIncome)}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
             showIncome
-              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-              : "bg-slate-900/40 text-muted-foreground border-slate-800/30 opacity-60"
+              ? "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/20"
+              : "bg-surface text-muted-foreground border-border/50 opacity-60"
           }`}
         >
           {showIncome ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
@@ -131,8 +131,8 @@ export function EquityChart() {
           onClick={() => setShowExpense(!showExpense)}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
             showExpense
-              ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-              : "bg-slate-900/40 text-muted-foreground border-slate-800/30 opacity-60"
+              ? "bg-rose-500/10 text-rose-500 dark:text-rose-400 border-rose-500/20"
+              : "bg-surface text-muted-foreground border-border/50 opacity-60"
           }`}
         >
           {showExpense ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
@@ -144,8 +144,8 @@ export function EquityChart() {
           onClick={() => setShowSavings(!showSavings)}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
             showSavings
-              ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
-              : "bg-slate-900/40 text-muted-foreground border-slate-800/30 opacity-60"
+              ? "bg-sky-500/10 text-sky-500 dark:text-sky-400 border-sky-500/20"
+              : "bg-surface text-muted-foreground border-border/50 opacity-60"
           }`}
         >
           {showSavings ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
@@ -179,11 +179,11 @@ export function EquityChart() {
               <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatRupiahShort(v)} />
               <Tooltip
                 contentStyle={{
-                  background: "rgba(11,18,32,0.95)",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  background: "var(--chart-tooltip-bg)",
+                  border: "1px solid var(--border-bright)",
                   borderRadius: 12,
                   fontSize: 12,
-                  boxShadow: "0 10px 15px -3px rgba(0,0,0,0.5)"
+                  boxShadow: "0 10px 15px -3px var(--chart-tooltip-shadow)"
                 }}
                 labelStyle={{ color: "#94a3b8", fontWeight: "bold", marginBottom: 4 }}
                 formatter={(value: any, name: any) => {

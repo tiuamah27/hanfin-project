@@ -5,13 +5,15 @@ import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui-store";
 import { useWallets, useAuth } from "@/hooks";
 import { formatRupiahShort } from "@/lib/utils/formatters";
-import { Menu, Search, Bell, Wallet, Trash2, CheckCheck, MoreHorizontal } from "lucide-react";
+import { Menu, Search, Bell, Wallet, Trash2, CheckCheck, MoreHorizontal, Moon, Sun } from "lucide-react";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { toast } from "@/components/ui/toaster";
 import Image from "next/image";
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "next-themes";
+import { Classic } from "@/components/ui/classic-theme-toggle";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -42,6 +44,7 @@ export function Topbar() {
   const { data: wallets } = useWallets();
   const { profile } = useAuth();
   const { notifications, markAsRead, markAllAsRead, clearAll } = useNotificationStore();
+  const { theme, setTheme } = useTheme();
   
   const [showNotif, setShowNotif] = useState(false);
   const [filterNotif, setFilterNotif] = useState<'all' | 'unread'>('all');
@@ -75,12 +78,11 @@ export function Topbar() {
     <header
       className={cn(
         "fixed top-4 right-4 z-30 h-14 flex items-center justify-between gap-4 px-6 rounded-2xl",
-        "bg-[#0B0F19]/90 backdrop-blur-xl border border-border/50 shadow-sm",
-        "transition-all duration-300",
+        "bg-background/90 backdrop-blur-xl border border-border/50 shadow-sm",
+        "transition-all duration-300 transition-colors duration-300 left-4",
         sidebarCollapsed
-          ? "left-[calc(var(--spacing-sidebar-collapsed)+16px)]"
-          : "left-[calc(var(--spacing-sidebar)+16px)]",
-        "max-lg:left-4"
+          ? "lg:left-[calc(var(--spacing-sidebar-collapsed)+16px)]"
+          : "lg:left-[calc(var(--spacing-sidebar)+16px)]"
       )}
     >
       {/* Left */}
@@ -112,11 +114,19 @@ export function Topbar() {
           </span>
         </div>
 
+        {/* Theme Toggle */}
+        <Classic
+          duration={500}
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="w-9 h-9 rounded-xl bg-card border border-border hover:border-primary/50 text-muted-foreground hover:text-foreground transition-all flex items-center justify-center [&>svg]:w-4 [&>svg]:h-4"
+          title="Ganti Tema"
+        />
+
         {/* Notifications */}
         <div className="relative" ref={notifRef}>
           <button 
             onClick={() => setShowNotif(!showNotif)} 
-            className="relative p-2.5 rounded-xl bg-card border border-border hover:border-primary/50 text-muted-foreground hover:text-foreground transition-all group"
+            className="relative w-9 h-9 rounded-xl bg-card border border-border hover:border-primary/50 text-muted-foreground hover:text-foreground transition-all group flex items-center justify-center"
           >
             <Bell className="w-4 h-4 group-hover:animate-swing" />
             {notifications.some(n => n.isNew) && (
@@ -131,7 +141,7 @@ export function Topbar() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute top-[calc(100%+8px)] -right-[52px] sm:right-0 w-[calc(100vw-48px)] sm:w-[360px] max-w-[360px] max-h-[85vh] overflow-y-auto custom-scrollbar bg-[#0B0F19]/95 backdrop-blur-xl border border-border/50 shadow-2xl z-50 flex flex-col rounded-xl"
+                className="absolute top-[calc(100%+8px)] -right-[52px] sm:right-0 w-[calc(100vw-48px)] sm:w-[360px] max-w-[360px] max-h-[85vh] overflow-y-auto custom-scrollbar bg-background/95 backdrop-blur-xl border border-border/50 shadow-2xl z-50 flex flex-col rounded-xl"
               >
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 pt-4 pb-2 relative">

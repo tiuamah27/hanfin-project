@@ -137,7 +137,7 @@ export function PaylaterPaymentModal() {
           <button type="button" onClick={closeModal} className="px-5 py-2.5 bg-card border border-border hover:bg-surface text-foreground font-bold rounded-lg transition-colors text-xs">
             BATAL
           </button>
-          <button type="submit" disabled={createTxn.isPending || payPaylater.isPending} className="px-5 py-2.5 bg-[#69f0ae] text-black font-bold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 text-xs flex items-center gap-2">
+          <button type="submit" disabled={createTxn.isPending || payPaylater.isPending} className="px-5 py-2.5 bg-green text-white font-bold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 text-xs flex items-center gap-2">
             BAYAR &rarr;
           </button>
         </div>

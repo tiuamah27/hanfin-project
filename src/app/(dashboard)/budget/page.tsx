@@ -217,7 +217,7 @@ export default function BudgetPage() {
               <p className="text-xs text-muted-foreground leading-none">Anggaran per kategori</p>
             </div>
             {/* Period Nav */}
-            <div className="flex items-center gap-2 bg-[#1a2235] backdrop-blur-md rounded-full p-1 border border-border/50 shadow-sm">
+            <div className="flex items-center gap-2 bg-surface backdrop-blur-md rounded-full p-1 border border-border/50 shadow-sm">
               <button onClick={() => changePeriod(-1)} className="p-1.5 rounded-full hover:bg-card text-muted-foreground transition-colors"><ChevronLeft className="w-4 h-4" /></button>
               <span className="text-sm font-medium text-foreground w-28 text-center font-mono">{periodLabel}</span>
               <button onClick={() => changePeriod(1)} className="p-1.5 rounded-full hover:bg-card text-muted-foreground transition-colors"><ChevronRight className="w-4 h-4" /></button>
@@ -232,7 +232,7 @@ export default function BudgetPage() {
           {[...Array(4)].map((_, i) => <div key={i} className="h-28 skeleton rounded-2xl" />)}
         </div>
       ) : groupedBudgets.length === 0 ? (
-        <div className="glass-card flex flex-col items-center justify-center py-[100px] border border-border/50 bg-[#0a0f1c]/50">
+        <div className="glass-card flex flex-col items-center justify-center py-[100px] border border-border/50 bg-card">
           <PieChart className="w-12 h-12 text-[#38bdf8] mx-auto mb-4 opacity-80" />
           <p className="text-sm font-bold text-foreground">Belum ada budget</p>
           <p className="text-xs text-muted-foreground mt-1">Set anggaran untuk mengontrol pengeluaran</p>

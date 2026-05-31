@@ -90,7 +90,7 @@ export function CashflowBar() {
                 <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                 <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatRupiahShort(v)} />
                 <Tooltip
-                  contentStyle={{ background: "rgba(11,18,32,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, fontSize: 12, boxShadow: "0 10px 15px -3px rgba(0,0,0,0.5)" }}
+                  contentStyle={{ background: "var(--chart-tooltip-bg)", border: "1px solid var(--border-bright)", borderRadius: 10, fontSize: 12, boxShadow: "0 10px 15px -3px var(--chart-tooltip-shadow)" }}
                   labelStyle={{ color: "#94a3b8", fontWeight: "bold", marginBottom: 4 }}
                   formatter={(v: any, name: any) => [formatRupiahShort(Number(v)), name === "income" ? "Pemasukan" : "Pengeluaran"]}
                 />
@@ -101,14 +101,14 @@ export function CashflowBar() {
           </div>
 
           {/* 3 Days Comparison (Dead zone filler) */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 border-t border-slate-800/50 pt-4 shrink-0">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 border-t border-border/50 pt-4 shrink-0">
             {data.last3DaysStats.map((stat, idx) => (
-              <div key={idx} className="flex flex-col bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/50">
-                <span className="text-[10px] font-medium text-slate-400 mb-1 text-center">{stat.label}</span>
+              <div key={idx} className="flex flex-col bg-surface p-2.5 rounded-xl border border-border/50">
+                <span className="text-[10px] font-medium text-muted-foreground mb-1 text-center">{stat.label}</span>
                 <div className="flex justify-between items-center px-0.5">
-                  <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 truncate">{formatRupiahShort(stat.income)}</span>
-                  <div className="w-[1px] h-3.5 bg-slate-800/60 mx-1.5 shrink-0" />
-                  <span className="text-[10px] sm:text-[11px] font-bold text-rose-400 truncate">{formatRupiahShort(stat.expense)}</span>
+                  <span className="text-[10px] sm:text-[11px] font-bold text-emerald-500 dark:text-emerald-400 truncate">{formatRupiahShort(stat.income)}</span>
+                  <div className="w-[1px] h-3.5 bg-border mx-1.5 shrink-0" />
+                  <span className="text-[10px] sm:text-[11px] font-bold text-rose-500 dark:text-rose-400 truncate">{formatRupiahShort(stat.expense)}</span>
                 </div>
               </div>
             ))}

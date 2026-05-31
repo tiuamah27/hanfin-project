@@ -178,7 +178,7 @@ export function Sidebar() {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col fixed left-0 top-0 bottom-0 z-40 glass-sidebar transition-all duration-300",
+          "hidden lg:flex flex-col fixed left-0 top-0 bottom-0 z-40 glass-sidebar transition-all duration-300 transition-colors duration-300",
           sidebarCollapsed ? "w-[var(--spacing-sidebar-collapsed)]" : "w-[var(--spacing-sidebar)]"
         )}
       >

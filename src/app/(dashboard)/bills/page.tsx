@@ -160,7 +160,7 @@ export default function BillsPage() {
                         {!isPaid && (
                           <button 
                             onClick={(e) => { e.stopPropagation(); openModal('paylater_payment', b); }}
-                            className="px-3 py-1.5 bg-[#69f0ae]/10 text-[#69f0ae] border border-[#69f0ae]/20 rounded-md text-[10px] font-bold uppercase tracking-wider hover:bg-[#69f0ae] hover:text-black transition-colors mr-2"
+                            className="px-3 py-1.5 bg-green-dim text-green border border-green-dim rounded-md text-[10px] font-bold uppercase tracking-wider hover:bg-green hover:text-white transition-colors mr-2"
                           >
                             Bayar
                           </button>

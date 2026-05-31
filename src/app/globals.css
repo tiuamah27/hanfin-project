@@ -6,17 +6,17 @@
 
 @theme inline {
   /* ---- Background Colors ---- */
-  --color-background: #050816;
-  --color-surface: #07111f;
-  --color-card: #0b1220;
-  --color-card-hover: #0f172a;
-  --color-elevated: #111b2e;
-  --color-input: #0d1526;
+  --color-background: var(--bg-main);
+  --color-surface: var(--bg-surface);
+  --color-card: var(--bg-card);
+  --color-card-hover: var(--bg-card-hover);
+  --color-elevated: var(--bg-elevated);
+  --color-input: var(--bg-input);
 
   /* ---- Border Colors ---- */
-  --color-border: rgba(56, 189, 248, 0.08);
-  --color-border-bright: rgba(56, 189, 248, 0.15);
-  --color-border-glow: rgba(56, 189, 248, 0.25);
+  --color-border: var(--border-color);
+  --color-border-bright: var(--border-bright);
+  --color-border-glow: var(--border-glow);
 
   /* ---- Accent Colors ---- */
   --color-primary: #38bdf8;
@@ -47,9 +47,9 @@
   --color-rose-dim: rgba(251, 113, 133, 0.12);
 
   /* ---- Text Colors ---- */
-  --color-foreground: #f1f5f9;
-  --color-muted-foreground: #64748b;
-  --color-dim: #475569;
+  --color-foreground: var(--text-main);
+  --color-muted-foreground: var(--text-muted);
+  --color-dim: var(--text-dim);
 
   /* ---- Gradient Presets ---- */
   --color-gradient-start: #0ea5e9;
@@ -83,6 +83,70 @@
   --animate-shimmer: shimmer 2s ease-in-out infinite;
   --animate-glow-pulse: glow-pulse 3s ease-in-out infinite;
   --animate-float: float 6s ease-in-out infinite;
+}
+
+:root {
+  /* Light Theme */
+  --bg-main: #f8fafc;
+  --bg-surface: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-elevated: #ffffff;
+  --bg-input: #f8fafc;
+
+  --border-color: rgba(14, 165, 233, 0.2);
+  --border-bright: rgba(14, 165, 233, 0.3);
+  --border-glow: rgba(14, 165, 233, 0.4);
+
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-dim: #94a3b8;
+
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(14, 165, 233, 0.15);
+  --glass-card-bg1: rgba(255, 255, 255, 0.9);
+  --glass-card-bg2: rgba(248, 250, 252, 0.8);
+  
+  --sidebar-bg1: rgba(248, 250, 252, 0.95);
+  --sidebar-bg2: rgba(241, 245, 249, 0.98);
+  
+  --chart-tooltip-bg: rgba(255, 255, 255, 0.95);
+  --chart-tooltip-shadow: rgba(0, 0, 0, 0.1);
+  --scroll-thumb: rgba(14, 165, 233, 0.3);
+  --scroll-thumb-hover: rgba(14, 165, 233, 0.5);
+  --selection-bg: rgba(14, 165, 233, 0.3);
+}
+
+.dark {
+  /* Dark Theme */
+  --bg-main: #050816;
+  --bg-surface: #07111f;
+  --bg-card: #0b1220;
+  --bg-card-hover: #0f172a;
+  --bg-elevated: #111b2e;
+  --bg-input: #0d1526;
+
+  --border-color: rgba(56, 189, 248, 0.08);
+  --border-bright: rgba(56, 189, 248, 0.15);
+  --border-glow: rgba(56, 189, 248, 0.25);
+
+  --text-main: #f1f5f9;
+  --text-muted: #64748b;
+  --text-dim: #475569;
+
+  --glass-bg: rgba(11, 18, 32, 0.6);
+  --glass-border: rgba(56, 189, 248, 0.08);
+  --glass-card-bg1: rgba(11, 18, 32, 0.8);
+  --glass-card-bg2: rgba(15, 23, 42, 0.6);
+  
+  --sidebar-bg1: rgba(7, 17, 31, 0.95);
+  --sidebar-bg2: rgba(5, 8, 22, 0.98);
+  
+  --chart-tooltip-bg: rgba(11, 18, 32, 0.95);
+  --chart-tooltip-shadow: rgba(0, 0, 0, 0.4);
+  --scroll-thumb: rgba(56, 189, 248, 0.15);
+  --scroll-thumb-hover: rgba(56, 189, 248, 0.3);
+  --selection-bg: rgba(56, 189, 248, 0.25);
 }
 
 /* ---- Keyframes ---- */
@@ -142,12 +206,23 @@ html {
 }
 
 body {
-  background: var(--color-background);
+  background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
   min-height: 100vh;
   width: 100vw;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 
+  Global smooth transition for theme switching.
+  We exclude SVG toggle components and recharts so their specific transforms/animations aren't overridden.
+*/
+body *:not(.classic-toggle-path):not(.classic-toggle-circle):not(.classic-toggle-ray):not(.recharts-wrapper):not(.recharts-surface):not(.recharts-layer) {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 400ms;
+  transition-timing-function: ease-in-out;
 }
 
 /* ---- Scrollbar ---- */
@@ -161,12 +236,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.15);
+  background: var(--scroll-thumb);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(56, 189, 248, 0.3);
+  background: var(--scroll-thumb-hover);
 }
 
 /* Glassmorphism Inset Scrollbar */
@@ -188,8 +263,8 @@ body {
 
 /* ---- Selection ---- */
 ::selection {
-  background: rgba(56, 189, 248, 0.25);
-  color: #f1f5f9;
+  background: var(--selection-bg);
+  color: var(--text-main);
 }
 
 /* ============================================
@@ -197,42 +272,42 @@ body {
    ============================================ */
 
 .glass {
-  background: rgba(11, 18, 32, 0.6);
+  background: var(--glass-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(56, 189, 248, 0.08);
+  border: 1px solid var(--glass-border);
 }
 
 .glass-card {
   background: linear-gradient(
     135deg,
-    rgba(11, 18, 32, 0.8) 0%,
-    rgba(15, 23, 42, 0.6) 100%
+    var(--glass-card-bg1) 0%,
+    var(--glass-card-bg2) 100%
   );
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(56, 189, 248, 0.08);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
   transition: all 0.3s ease;
 }
 
 .glass-card:hover {
-  border-color: rgba(56, 189, 248, 0.15);
+  border-color: var(--border-bright);
   box-shadow:
-    0 0 0 1px rgba(56, 189, 248, 0.05),
-    0 8px 32px rgba(0, 0, 0, 0.3);
+    0 0 0 1px var(--glass-border),
+    0 8px 32px var(--chart-tooltip-shadow);
   transform: translateY(-1px);
 }
 
 .glass-sidebar {
   background: linear-gradient(
     180deg,
-    rgba(7, 17, 31, 0.95) 0%,
-    rgba(5, 8, 22, 0.98) 100%
+    var(--sidebar-bg1) 0%,
+    var(--sidebar-bg2) 100%
   );
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border-right: 1px solid rgba(56, 189, 248, 0.06);
+  border-right: 1px solid var(--glass-border);
 }
 
 /* ============================================
@@ -344,11 +419,11 @@ body {
 }
 
 .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background: rgba(11, 18, 32, 0.95) !important;
-  border: 1px solid rgba(56, 189, 248, 0.15) !important;
+  background: var(--chart-tooltip-bg) !important;
+  border: 1px solid var(--border-bright) !important;
   border-radius: var(--radius-md) !important;
   backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: 0 8px 32px var(--chart-tooltip-shadow) !important;
 }
 
 /* ============================================
