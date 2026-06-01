@@ -163,7 +163,9 @@ Perbaiki data JSON sebelumnya berdasarkan koreksi. Kembalikan HANYA JSON murni (
         prompt = `
 Kamu adalah asisten pencatat keuangan. Ekstrak informasi dari pesan atau gambar pengguna.
 Pesan ini dikirim oleh: ${senderName}.
-ATURAN KHUSUS: Jika transaksi berupa beli makan, minuman, atau jajan, carilah budget item yang mengandung nama "${senderName}" (contoh: "Harian ${senderName}") di Pilihan Budget untuk diisikan ke "budgetItemName".
+ATURAN KHUSUS: 
+1. Jika transaksi berupa beli makan, minuman, atau jajan, carilah budget item yang mengandung nama "${senderName}" (contoh: "Harian ${senderName}") di Pilihan Budget untuk diisikan ke "budgetItemName".
+2. Jika transaksi adalah tentang biaya admin, biaya layanan, atau potongan biaya transfer, MAKA "categoryName" WAJIB diisi dengan "Biaya Transfer" (bukan "Transfer Keluar").
 
 ${baseMsg}
 
