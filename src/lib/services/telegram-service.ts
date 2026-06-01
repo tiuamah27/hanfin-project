@@ -200,7 +200,7 @@ Pastikan hanya me-return string JSON murni tanpa \`\`\`json.
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: imagePart ? "nvidia/nemotron-nano-12b-v2-vl:free" : "google/gemini-2.0-flash-lite-preview-02-05:free",
+          model: "nvidia/nemotron-nano-12b-v2-vl:free",
           messages: [{ role: "user", content: contentArray }],
           temperature: 0.1
         })
@@ -447,7 +447,7 @@ Saran harus memotivasi, jujur (kalau boros bilang boros, kalau bagus puji), guna
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            model: "google/gemini-2.0-flash-lite-preview-02-05:free",
+            model: "nvidia/nemotron-nano-12b-v2-vl:free",
             messages: [{ role: "user", content: prompt }],
             temperature: 0.7
           })
