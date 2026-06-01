@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase Client for backend (bypassing RLS or using anon key)
@@ -7,7 +6,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 // Hardcoded mapping from Chat ID to Supabase User ID
@@ -56,12 +55,12 @@ export const telegramService = {
     const userId = getUserIdFromChatId(senderId);
     
     if (!userId) {
-      // Jika di dalam grup, hindari spam pesan error untuk user yang tidak terdaftar
-      if (chatId < 0) return; 
-      
-      await this.sendMessage(chatId, 'Maaf, akun Telegram Anda belum terdaftar di sistem HanFin.');
+      await this.sendMessage(chatId, 'Akun Telegram Anda tidak diizinkan menggunakan bot ini.');
       return;
     }
+
+    const { data: profile } = await supabase.from('profiles').select('name').eq('id', userId).single();
+    const senderName = profile?.name || 'User';
 
     const text = messageObj.text || messageObj.caption || '';
 
@@ -134,8 +133,6 @@ export const telegramService = {
           };
         }
       }
-
-      const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
       
       let prompt = '';
       if (isEdit) {
@@ -165,6 +162,9 @@ Perbaiki data JSON sebelumnya berdasarkan koreksi. Kembalikan HANYA JSON murni (
         const baseMsg = messageObj.photo ? (text || "Ini struk/bukti transaksi. Tolong analisa total dan deskripsinya.") : `Pesan: "${text}"`;
         prompt = `
 Kamu adalah asisten pencatat keuangan. Ekstrak informasi dari pesan atau gambar pengguna.
+Pesan ini dikirim oleh: ${senderName}.
+ATURAN KHUSUS: Jika transaksi berupa beli makan, minuman, atau jajan, carilah budget item yang mengandung nama "${senderName}" (contoh: "Harian ${senderName}") di Pilihan Budget untuk diisikan ke "budgetItemName".
+
 ${baseMsg}
 
 Daftar Kategori & Pilihan Budget:
@@ -185,10 +185,33 @@ Pastikan hanya me-return string JSON murni tanpa \`\`\`json.
 `;
       }
 
-      const aiInput = imagePart ? [prompt, imagePart] : prompt;
-      const result = await model.generateContent(aiInput as any);
-      const response = await result.response;
-      let jsonText = response.text().trim();
+      let contentArray: any = prompt;
+      if (imagePart) {
+        contentArray = [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}` } }
+        ];
+      }
+
+      const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: imagePart ? "nvidia/nemotron-nano-12b-v2-vl:free" : "google/gemini-2.0-flash-lite-preview-02-05:free",
+          messages: [{ role: "user", content: contentArray }],
+          temperature: 0.1
+        })
+      });
+
+      if (!orRes.ok) {
+         const errText = await orRes.text();
+         throw new Error("OpenRouter API Error: " + errText);
+      }
+      const orData = await orRes.json();
+      let jsonText = orData.choices[0].message.content.trim();
       
       const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("Format balasan AI tidak valid: " + jsonText);
@@ -405,7 +428,6 @@ Raw Amount: ${parsed.amount}`;
       }
 
       // 7. AI Insight
-      const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
       const prompt = `Kamu adalah HanFin, asisten keuangan pintar dan ramah. Berikan insight pendek (maksimal 2-3 kalimat) tentang laporan keuangan bulan ${currentMonthName} ini.
 Gunakan data berikut:
 - Pemasukan: Rp ${income}
@@ -418,8 +440,20 @@ Saran harus memotivasi, jujur (kalau boros bilang boros, kalau bagus puji), guna
 
       let insight = '';
       try {
-        const result = await model.generateContent(prompt);
-        insight = result.response.text().trim();
+        const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.0-flash-lite-preview-02-05:free",
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.7
+          })
+        });
+        const orData = await orRes.json();
+        insight = orData.choices[0].message.content.trim();
       } catch (e) {
         insight = 'Terus semangat mengatur keuangan bulan ini ya!';
       }
