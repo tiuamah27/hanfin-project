@@ -40,7 +40,9 @@ export default function BudgetPage() {
   const { cat: spending, item: itemSpending } = useMemo(() => {
     const catMap: Record<string, number> = {};
     const itemMap: Record<string, number> = {};
-    (txns || []).filter((t) => t.type === "expense").forEach((t) => {
+    (txns || [])
+      .filter((t) => t.type === "expense" && t.categories?.name?.toLowerCase() !== "transfer keluar" && t.categories?.name?.toLowerCase() !== "transfer")
+      .forEach((t) => {
       if (t.budget_item_id) {
         if (t.category_id) catMap[t.category_id] = (catMap[t.category_id] || 0) + Number(t.amount);
         itemMap[t.budget_item_id] = (itemMap[t.budget_item_id] || 0) + Number(t.amount);
