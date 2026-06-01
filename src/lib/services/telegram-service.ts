@@ -663,7 +663,10 @@ _Semangat mengatur keuangan!_ 💪`;
       
       if (error) {
         console.error('Supabase error:', error);
-        await this.sendMessage(chatId, `Gagal menyimpan transaksi ke database. Alasan: ${error.message || JSON.stringify(error)}`);
+        await this.sendMessage(chatId, `Gagal menyimpan.
+Alasan: ${error.message || JSON.stringify(error)}
+User ID terdeteksi: "${userId}"
+Payload: ${JSON.stringify(payload)}`);
         return;
       }
 
